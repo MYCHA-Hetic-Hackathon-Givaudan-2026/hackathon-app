@@ -1,0 +1,24 @@
+name: Tâche
+description: Un travail technique ou de documentation, rattaché à un livrable.
+title: 'tâche: '
+body:
+  - type: textarea
+    id: objectif
+    attributes:
+      label: Objectif
+      description: Le résultat concret, et le chemin du fichier ou de la commande concernés.
+    validations:
+      required: true
+  - type: textarea
+    id: criteres
+    attributes:
+      label: Critères d'acceptation
+      placeholder: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: hors
+    attributes:
+      label: Hors périmètre
