@@ -1,0 +1,30 @@
+name: Spike
+description: Une question limitée dans le temps. Pas une implémentation.
+title: 'spike: '
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Ce qu'on doit savoir avant de coder.
+    validations:
+      required: true
+  - type: textarea
+    id: seuil
+    attributes:
+      label: Seuil
+      description: Temps maximum. Passé ce seuil, on s'arrête et on tranche avec ce qu'on a.
+      placeholder: 2 heures
+    validations:
+      required: true
+  - type: textarea
+    id: resultat
+    attributes:
+      label: Résultat attendu
+      description: Une décision, un ADR, ou un ticket de suite. Pas de code de production.
+    validations:
+      required: true
+  - type: textarea
+    id: hors
+    attributes:
+      label: Hors périmètre

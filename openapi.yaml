@@ -1,0 +1,143 @@
+openapi: 3.1.0
+info:
+  title: Hackathon App API
+  version: 0.1.0
+  license:
+    name: UNLICENSED
+  description: >
+    Contrat HTTP de l'API du monolithe hackathon-app.
+    Couverture volontairement minimale et générique (santé + ressource
+    d'exemple « questions »), alignée sur l'atelier Glassworks.
+    Le domaine métier Givaudan n'est pas décrit ici : il fera évoluer
+    ce fichier par pull request. Source de vérité, voir
+    docs/adr/0006-contrat-api-openapi.md.
+# Routes de test : pas d'authentification (l'API Data/IA, elle, exige X-API-Key).
+security: []
+servers:
+  - url: http://localhost:3000
+    description: Dev container, port 3000 relayé par VS Code
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: Indique si l'API et la base répondent
+      responses:
+        '200':
+          description: API et PostgreSQL joignables
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                db: PostgreSQL 17.11
+        '503':
+          description: L'API tourne mais la base est injoignable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/questions:
+    get:
+      operationId: listQuestions
+      summary: Liste les questions les plus récentes
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Nombre maximal de lignes (défaut 10)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Liste éventuellement vide
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Question'
+        '400':
+          description: Paramètre limit invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: createQuestion
+      summary: Pose une question, enregistre la réponse de l'IA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewQuestion'
+            example:
+              question: Quelle est la capitale du Japon ?
+      responses:
+        '201':
+          description: Question créée, avec la réponse de l'IA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Question'
+        '400':
+          description: Corps invalide (question manquante ou vide)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Question manquante
+        '502':
+          description: Le fournisseur d'IA n'a pas répondu correctement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        db:
+          type: string
+          description: Version renvoyée par PostgreSQL (`SELECT version()`)
+    Question:
+      type: object
+      additionalProperties: false
+      required: [id, question, answer, created_at]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        question:
+          type: string
+        answer:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    NewQuestion:
+      type: object
+      additionalProperties: false
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 1
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string

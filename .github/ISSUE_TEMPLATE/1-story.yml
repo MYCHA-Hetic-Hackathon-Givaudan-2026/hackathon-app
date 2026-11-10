@@ -1,0 +1,26 @@
+name: Story
+description: Un besoin utilisateur, avec des critères qu'un autre peut vérifier.
+title: 'story: '
+body:
+  - type: textarea
+    id: besoin
+    attributes:
+      label: Besoin
+      description: Qui a besoin de quoi, et pourquoi.
+    validations:
+      required: true
+  - type: textarea
+    id: criteres
+    attributes:
+      label: Critères d'acceptation
+      description: Cases vérifiables par quelqu'un d'autre.
+      placeholder: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: hors
+    attributes:
+      label: Hors périmètre
+      description: Ce que cette story ne fera pas.

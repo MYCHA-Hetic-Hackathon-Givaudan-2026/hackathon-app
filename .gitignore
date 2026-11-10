@@ -224,3 +224,6 @@ db/data
 
 */node_modules/
 node_modules
+
+# Brouillons de session (AGENTS.md). Markdown seulement, jamais de .ts.
+.scratch/
