@@ -8,9 +8,18 @@
   ],
   "scripts": {
     "dev": "concurrently -n api,web \"npm run dev -w api\" \"npm run dev -w web\"",
-    "build": "npm run build --workspaces"
+    "build": "npm run build --workspaces",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "concurrently": "^10.0.6"
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.6",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.2"
   }
 }
