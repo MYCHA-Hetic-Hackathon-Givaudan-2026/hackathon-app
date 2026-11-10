@@ -30,7 +30,7 @@ services:
       # Schéma et données de test, joués au premier démarrage
       - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      test: ['CMD-SHELL', 'pg_isready -U app -d app']
       interval: 5s
       timeout: 3s
       retries: 10
@@ -41,7 +41,7 @@ services:
       # Les modèles (plusieurs Go) : un volume Docker, hors du dossier du projet
       - ollama:/root/.ollama
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: ['CMD', 'ollama', 'list']
       interval: 5s
       timeout: 3s
       retries: 10
@@ -55,7 +55,7 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
-    restart: "no"
+    restart: 'no'
 
 volumes:
   ollama:
