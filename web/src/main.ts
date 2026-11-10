@@ -20,25 +20,24 @@ async function refresh() {
   );
 }
 
-form.addEventListener('submit', async (event) => {
 type Tendance = { terme: string; croissance_pct: number; statut: string };
 
-const tendancesForm = document.querySelector<HTMLFormElement>("#tendances")!;
-const tendancesStatus = document.querySelector("#tendances-status")!;
-const tendancesList = document.querySelector("#tendances-list")!;
+const tendancesForm = document.querySelector<HTMLFormElement>('#tendances')!;
+const tendancesStatus = document.querySelector('#tendances-status')!;
+const tendancesList = document.querySelector('#tendances-list')!;
 
-tendancesForm.addEventListener("submit", async (event) => {
+tendancesForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const raw = String(new FormData(tendancesForm).get("termes") ?? "");
+  const raw = String(new FormData(tendancesForm).get('termes') ?? '');
   const termes = raw
-    .split(",")
+    .split(',')
     .map((terme) => terme.trim())
     .filter(Boolean);
   tendancesStatus.textContent = "Appel de l'API Data…";
   tendancesList.replaceChildren();
-  const response = await fetch("/api/tendances", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  const response = await fetch('/api/tendances', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ termes }),
   });
   const body = await response.json();
@@ -50,14 +49,14 @@ tendancesForm.addEventListener("submit", async (event) => {
   tendancesStatus.textContent = `${tendances.length} résultat(s)`;
   tendancesList.replaceChildren(
     ...tendances.map((tendance) => {
-      const item = document.createElement("li");
+      const item = document.createElement('li');
       item.textContent = `${tendance.terme} · ${tendance.croissance_pct} % · ${tendance.statut}`;
       return item;
     }),
   );
 });
 
-form.addEventListener("submit", async (event) => {
+form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const question = new FormData(form).get('question');
   await fetch('/api/questions', {

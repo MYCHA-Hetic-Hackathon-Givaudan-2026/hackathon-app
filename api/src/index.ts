@@ -9,8 +9,8 @@ try {
 }
 
 const { DATABASE_URL, AI_BASE_URL, AI_MODEL, AI_API_KEY = '' } = process.env;
-// L'API de l'équipe Data/IA : si elle est configurée, elle remplace le fournisseur
-const { DATA_AI_URL, DATA_AI_KEY = '' } = process.env;
+// Base de l'API Data (Swagger sur /docs). Contrat : docs/data/openapi.json
+const { DATA_AI_URL } = process.env;
 const PORT = Number(process.env.PORT ?? 3000);
 
 const db = new pg.Pool({ connectionString: DATABASE_URL });
@@ -64,22 +64,15 @@ async function ask(question: string): Promise<string> {
   return data.choices[0].message.content;
 }
 
-// L'API de l'équipe Data/IA, derrière son tunnel ngrok. Le contrat : son Swagger (/docs)
-async function askDataTeam(question: string): Promise<string> {
-  const response = await fetch(`${DATA_AI_URL}/answer`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-API-Key': DATA_AI_KEY },
-    body: JSON.stringify({ question }),
-    // Machine en veille, tunnel coupé : on abandonne au bout de 30 secondes
 type Tendance = {
   terme: string;
   croissance_pct: number;
   statut: string;
 };
 
-app.post("/api/tendances", async (req, res) => {
+app.post('/api/tendances', async (req, res) => {
   if (!DATA_AI_URL) {
-    res.status(503).json({ error: "API Data non configurée (DATA_AI_URL)" });
+    res.status(503).json({ error: 'API Data non configurée (DATA_AI_URL)' });
     return;
   }
   const termes = Array.isArray(req.body?.termes)
@@ -88,7 +81,7 @@ app.post("/api/tendances", async (req, res) => {
         .filter(Boolean)
     : [];
   if (termes.length === 0) {
-    res.status(400).json({ error: "termes manquants" });
+    res.status(400).json({ error: 'termes manquants' });
     return;
   }
 
@@ -96,16 +89,19 @@ app.post("/api/tendances", async (req, res) => {
     res.json(await fetchTendances(termes));
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "API Data indisponible";
+      error instanceof Error ? error.message : 'API Data indisponible';
     res.status(502).json({ error: message });
   }
 });
 
 // Contrat Data : POST /tendances, voir docs/data/openapi.json (leur Swagger /docs)
 async function fetchTendances(termes: string[]): Promise<Tendance[]> {
-  const response = await fetch(`${DATA_AI_URL.replace(/\/$/, "")}/tendances`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  if (!DATA_AI_URL) {
+    throw new Error('API Data non configurée (DATA_AI_URL)');
+  }
+  const response = await fetch(`${DATA_AI_URL.replace(/\/$/, '')}/tendances`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ termes }),
     signal: AbortSignal.timeout(30_000),
   });
@@ -114,7 +110,7 @@ async function fetchTendances(termes: string[]): Promise<Tendance[]> {
   }
   const data: unknown = await response.json();
   if (!Array.isArray(data)) {
-    throw new Error("Data : réponse inattendue");
+    throw new Error('Data : réponse inattendue');
   }
   return data as Tendance[];
 }
