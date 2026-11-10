@@ -20,7 +20,6 @@ async function refresh() {
   );
 }
 
-form.addEventListener('submit', async (event) => {
 type Tendance = { terme: string; croissance_pct: number; statut: string };
 
 const tendancesForm = document.querySelector<HTMLFormElement>('#tendances')!;
@@ -34,7 +33,7 @@ tendancesForm.addEventListener('submit', async (event) => {
     .split(',')
     .map((terme) => terme.trim())
     .filter(Boolean);
-  tendancesStatus.textContent = 'Appel de l'API Data…';
+  tendancesStatus.textContent = "Appel de l'API Data…";
   tendancesList.replaceChildren();
   const response = await fetch('/api/tendances', {
     method: 'POST',
@@ -43,7 +42,7 @@ tendancesForm.addEventListener('submit', async (event) => {
   });
   const body = await response.json();
   if (!response.ok) {
-    tendancesStatus.textContent = body.error ?? 'Échec de l'appel Data';
+    tendancesStatus.textContent = body.error ?? "Échec de l'appel Data";
     return;
   }
   const tendances = body as Tendance[];
