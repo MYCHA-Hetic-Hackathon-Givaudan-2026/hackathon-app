@@ -1,0 +1,111 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "API Tendances Givaudan",
+    "description": "Brique Data : détecte les ingrédients en tendance émergente",
+    "version": "0.1-dummy"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        }
+      }
+    },
+    "/tendances": {
+      "post": {
+        "summary": "Tendances",
+        "operationId": "tendances_tendances_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Requete" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "$ref": "#/components/schemas/Tendance" },
+                  "type": "array",
+                  "title": "Response Tendances Tendances Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Requete": {
+        "properties": {
+          "termes": {
+            "items": { "type": "string" },
+            "type": "array",
+            "title": "Termes",
+            "default": ["Yuzu", "Matcha", "Vanilla"]
+          }
+        },
+        "type": "object",
+        "title": "Requete"
+      },
+      "Tendance": {
+        "properties": {
+          "terme": { "type": "string", "title": "Terme" },
+          "croissance_pct": { "type": "number", "title": "Croissance Pct" },
+          "statut": { "type": "string", "title": "Statut" }
+        },
+        "type": "object",
+        "required": ["terme", "croissance_pct", "statut"],
+        "title": "Tendance"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" },
+          "input": { "title": "Input" },
+          "ctx": { "type": "object", "title": "Context" }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
