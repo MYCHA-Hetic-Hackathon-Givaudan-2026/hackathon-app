@@ -1,3 +1,4 @@
 node_modules
 dist
 package-lock.json
+web/public/world-countries.json

@@ -1,11 +1,33 @@
-type FiltersBarProps = {
-  minConfiance?: number;
-  fenetre?: '7d' | '30d' | '90d';
+import type { Fenetre } from '../lib/signaux';
+
+export type FiltersBarProps = {
+  query: string;
+  onQueryChange: (q: string) => void;
+  showDurable: boolean;
+  showBuzz: boolean;
+  onToggleDurable: () => void;
+  onToggleBuzz: () => void;
+  countDurable: number;
+  countBuzz: number;
+  minConfiance: number;
+  onMinConfianceChange: (n: number) => void;
+  fenetre: Fenetre | null;
+  onFenetreChange: (f: Fenetre | null) => void;
 };
 
 export function FiltersBar({
-  minConfiance = 50,
-  fenetre = '7d',
+  query,
+  onQueryChange,
+  showDurable,
+  showBuzz,
+  onToggleDurable,
+  onToggleBuzz,
+  countDurable,
+  countBuzz,
+  minConfiance,
+  onMinConfianceChange,
+  fenetre,
+  onFenetreChange,
 }: FiltersBarProps) {
   return (
     <div className="map-zone__toolbar">
@@ -34,23 +56,30 @@ export function FiltersBar({
               <circle cx="11" cy="11" r="7" />
               <path d="M20 20l-3.5-3.5" />
             </svg>
-            <input type="search" placeholder="Rechercher un signal" disabled />
+            <input
+              type="search"
+              placeholder="Rechercher un signal"
+              value={query}
+              onChange={(e) => onQueryChange(e.target.value)}
+            />
           </label>
           <button
             type="button"
             className="map-zone__chip map-zone__chip--t"
-            disabled
+            aria-pressed={showDurable}
+            onClick={onToggleDurable}
           >
             <span className="map-zone__dot" aria-hidden="true" />
-            Tendances · —
+            Tendances · {countDurable}
           </button>
           <button
             type="button"
             className="map-zone__chip map-zone__chip--b"
-            disabled
+            aria-pressed={showBuzz}
+            onClick={onToggleBuzz}
           >
             <span className="map-zone__diamond" aria-hidden="true" />
-            Buzz · —
+            Buzz · {countBuzz}
           </button>
         </div>
 
@@ -71,7 +100,7 @@ export function FiltersBar({
                 key={id}
                 type="button"
                 aria-pressed={fenetre === id}
-                disabled
+                onClick={() => onFenetreChange(fenetre === id ? null : id)}
               >
                 {label}
               </button>
@@ -84,8 +113,8 @@ export function FiltersBar({
               min={50}
               max={100}
               step={1}
-              defaultValue={minConfiance}
-              disabled
+              value={minConfiance}
+              onChange={(e) => onMinConfianceChange(Number(e.target.value))}
             />
             <strong>{minConfiance} %</strong>
           </label>
