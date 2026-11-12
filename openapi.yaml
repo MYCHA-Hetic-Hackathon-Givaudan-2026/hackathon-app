@@ -11,7 +11,8 @@ info:
     Le domaine métier Givaudan n'est pas décrit ici : il fera évoluer
     ce fichier par pull request. Source de vérité, voir
     docs/adr/0006-contrat-api-openapi.md.
-# Routes de test : pas d'authentification (l'API Data/IA, elle, exige X-API-Key).
+    Le service Data en amont a son propre contrat : docs/data/openapi.json.
+    POST /api/tendances n'est que le proxy du monolithe.
 security: []
 servers:
   - url: http://localhost:3000
@@ -98,6 +99,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/tendances:
+    post:
+      operationId: postTendances
+      summary: Renvoie la tendance des ingrédients demandés
+      description: >
+        Proxy vers POST /tendances du service Data.
+        Contrat amont : docs/data/openapi.json. Base : DATA_AI_URL dans api/.env.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TendancesRequest'
+            example:
+              termes: [Yuzu, Matcha, Vanilla]
+      responses:
+        '200':
+          description: Une entrée par terme
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tendance'
+        '400':
+          description: termes absent ou vide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: termes manquants
+        '502':
+          description: L'API Data a répondu une erreur ou un corps inattendu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: DATA_AI_URL n'est pas configurée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: API Data non configurée (DATA_AI_URL)
 components:
   schemas:
     Health:
@@ -141,3 +188,26 @@ components:
       properties:
         error:
           type: string
+    TendancesRequest:
+      type: object
+      additionalProperties: false
+      required: [termes]
+      properties:
+        termes:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+    Tendance:
+      type: object
+      additionalProperties: false
+      required: [terme, croissance_pct, statut]
+      properties:
+        terme:
+          type: string
+        croissance_pct:
+          type: number
+        statut:
+          type: string
+          enum: ['émergent', stable, en baisse]
