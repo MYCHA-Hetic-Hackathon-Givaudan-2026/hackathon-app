@@ -3,23 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hackathon</title>
+    <title>TrendRadar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
   </head>
   <body>
-    <h1>Hackathon</h1>
-    <p id="health">Connexion à l'API…</p>
-    <form>
-      <input name="question" placeholder="Posez une question à l'IA" required />
-      <button>Envoyer</button>
-    </form>
-    <ul id="questions"></ul>
-    <h2>Tendances</h2>
-    <form id="tendances">
-      <input name="termes" placeholder="Yuzu, Matcha, Vanilla" required />
-      <button>Voir les tendances</button>
-    </form>
-    <p id="tendances-status"></p>
-    <ul id="tendances-list"></ul>
-    <script type="module" src="/src/main.ts"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

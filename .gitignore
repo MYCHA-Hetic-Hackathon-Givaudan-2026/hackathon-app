@@ -14,8 +14,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Packaging Python à la racine uniquement (ne pas ignorer web/src/lib/)
+/lib/
+/lib64/
 parts/
 sdist/
 var/
