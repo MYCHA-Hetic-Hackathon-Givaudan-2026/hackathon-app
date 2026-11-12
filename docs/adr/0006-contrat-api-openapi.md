@@ -8,9 +8,9 @@
 
 Le jalon m1 demande un contrat d'API versionné dans le dépôt. Une page `/docs` servie par un processus qui tourne ne compte pas : elle disparaît quand le processus s'arrête, et elle n'est pas relue dans la pull request.
 
-Le fichier proposé est [`openapi.yaml`](../../openapi.yaml), à la racine, en OpenAPI 3.1. Il décrit le monolithe `hackathon-app` : `GET /api/health` et la ressource d'exemple `/api/questions`. Le domaine métier Givaudan n'y est pas inventé.
+Le fichier proposé est [`openapi.yaml`](../../openapi.yaml), à la racine, en OpenAPI 3.1. Il décrit le monolithe `hackathon-app` : `GET /api/health`, la ressource d'exemple `/api/questions`, et le proxy `POST /api/tendances`. Le domaine métier Givaudan n'y est pas inventé.
 
-L'API de l'équipe Data (FastAPI, `GET /health`, `POST /tendances`) est un autre service. Son contrat n'est pas celui de ce fichier. L'y intégrer sera une pull request séparée, quand le Tech Lead aura validé ce lot.
+L'API de l'équipe Data (FastAPI, `GET /health`, `POST /tendances`) reste un autre service. Son contrat est [`docs/data/openapi.json`](../data/openapi.json). `openapi.yaml` ne décrit que le proxy du monolithe.
 
 ## Options
 
