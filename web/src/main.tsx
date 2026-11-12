@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './styles/tokens.css';
 import './styles/explorer.css';
+import './styles/landing.css';
 
 const root = document.getElementById('root');
 if (!root) {
