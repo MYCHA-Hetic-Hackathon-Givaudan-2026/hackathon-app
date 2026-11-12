@@ -6,12 +6,14 @@ info:
     name: UNLICENSED
   description: >
     Contrat HTTP de l'API du monolithe hackathon-app.
-    Santé, ressource d'exemple « questions », proxy Data `/api/tendances`,
+    Santé, ressource d'exemple « questions », proxies Data
+    (`/api/scan/latest`, `/api/predict`, `/api/scan/status`, …),
     graine démo TrendRadar `/api/signaux` (profil, géo, confiance),
     et suivis persistés `/api/suivis`.
     Source de vérité, voir docs/adr/0006-contrat-api-openapi.md.
-    Le service Data en amont a son propre contrat : docs/data/openapi.json.
-    POST /api/tendances n'est que le proxy du monolithe.
+    Le service Data en amont (malickl/trend-radar) a son propre contrat :
+    docs/data/openapi.json. Écarts Signal ↔ ScanRow :
+    docs/data/alignement-contrat-signaux.md.
 security: []
 servers:
   - url: http://localhost:3000
@@ -98,40 +100,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /api/tendances:
-    post:
-      operationId: postTendances
-      summary: Renvoie la tendance des ingrédients demandés
+  /api/data/health:
+    get:
+      operationId: getDataHealth
+      summary: Santé du service Data (proxy)
       description: >
-        Proxy vers POST /tendances du service Data.
-        Contrat amont : docs/data/openapi.json. Base : DATA_AI_URL dans api/.env.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TendancesRequest'
-            example:
-              termes: [Yuzu, Matcha, Vanilla]
+        Proxy vers GET /health de trend-radar.
+        Contrat amont : docs/data/openapi.json. Base : DATA_AI_URL.
       responses:
         '200':
-          description: Une entrée par terme
+          description: Data joignable
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Tendance'
-        '400':
-          description: termes absent ou vide
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                error: termes manquants
+                $ref: '#/components/schemas/DataHealth'
         '502':
-          description: L'API Data a répondu une erreur ou un corps inattendu
+          description: Data a répondu une erreur
           content:
             application/json:
               schema:
@@ -144,16 +128,133 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 error: API Data non configurée (DATA_AI_URL)
+  /api/scan/latest:
+    get:
+      operationId: getScanLatest
+      summary: Dernier scan Data (proxy)
+      description: >
+        Proxy transparent vers GET /scan/latest (appel principal Data).
+        Corps inchangé par rapport à docs/data/openapi.json (ScanLatest).
+        Ne remplace pas GET /api/signaux (graine monolithe pour le globe).
+      responses:
+        '200':
+          description: Scan disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanLatest'
+        '404':
+          description: Aucun scan côté Data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Data indisponible ou corps inattendu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: DATA_AI_URL n'est pas configurée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: API Data non configurée (DATA_AI_URL)
+  /api/predict:
+    post:
+      operationId: postPredict
+      summary: Prédiction Data pour un sujet (proxy)
+      description: >
+        Proxy vers POST /predict. Corps et query `last`/`since` transmis tels quels.
+      parameters:
+        - name: last
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[0-9]{6}$'
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[0-9]{6}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictIn'
+            example:
+              title: Maritozzo
+              category: Desserts
+      responses:
+        '200':
+          description: Prédiction (label peut être null)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictOut'
+        '400':
+          description: Corps invalide (title manquant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Page Wikipédia introuvable côté Data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Data indisponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: DATA_AI_URL n'est pas configurée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/scan/status:
+    get:
+      operationId: getScanStatus
+      summary: État du scan Data (proxy)
+      description: Proxy vers GET /scan/status.
+      responses:
+        '200':
+          description: État
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanStatus'
+        '502':
+          description: Data indisponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: DATA_AI_URL n'est pas configurée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /api/signaux:
     get:
       operationId: listSignaux
       summary: Liste les signaux démo TrendRadar
       description: >
-        Graine démo (45 signaux du mockup Globe). Les champs profil, geo et
-        confiance viennent du seed, pas du contrat Data actuel (écart documenté
-        dans docs/data/alignement-contrat-signaux.md).
-        POST /api/tendances reste le proxy pour croissance/statut quand les
-        termes matchent ; pas de faux scores hors contrat Data.
+        Graine démo monolithe (45 signaux). Schéma `Signal` (noms monolithe).
+        Pour le payload Data brut, utiliser GET /api/scan/latest.
+        Écarts de champs : docs/data/alignement-contrat-signaux.md.
+        Pas de faux scores : on n'invente pas de mapping statut/croissance.
       parameters:
         - name: profil
           in: query
@@ -412,29 +513,137 @@ components:
       properties:
         error:
           type: string
-    TendancesRequest:
+    DataHealth:
       type: object
       additionalProperties: false
-      required: [termes]
+      required: [status, model_version, k, model]
       properties:
-        termes:
+        status:
+          type: string
+        model_version:
+          type: string
+        k:
+          type: integer
+        model:
+          type: string
+    DataLabel:
+      type: string
+      enum: ['Tendance durable', Buzz]
+    Ym:
+      type: string
+      pattern: '^[0-9]{6}$'
+      description: Mois AAAAMM
+    ScanRow:
+      type: object
+      additionalProperties: true
+      required: [title, group, t0, proba_tendance, label, verdict_verifiable_le]
+      properties:
+        title:
+          type: string
+        group:
+          type: string
+        t0:
+          $ref: '#/components/schemas/Ym'
+        proba_tendance:
+          type: number
+          minimum: 0
+          maximum: 1
+        label:
+          $ref: '#/components/schemas/DataLabel'
+        verdict_verifiable_le:
+          $ref: '#/components/schemas/Ym'
+        exclu_raison:
+          type: [string, 'null']
+        growth_since_t0:
+          type: number
+        demo_fictif:
+          type: boolean
+        domaine:
+          type: string
+        country:
+          type: string
+        lat:
+          type: number
+        lon:
+          type: number
+        element_cle:
+          type: string
+        matieres_premieres:
           type: array
-          minItems: 1
           items:
             type: string
-            minLength: 1
-    Tendance:
+        date_prediction:
+          $ref: '#/components/schemas/Ym'
+        veille:
+          type: object
+          additionalProperties: true
+    ScanLatest:
+      type: object
+      additionalProperties: true
+      required: [file, last_month, n, rows]
+      properties:
+        file:
+          type: string
+        last_month:
+          $ref: '#/components/schemas/Ym'
+        n:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanRow'
+        demo_fictif:
+          type: boolean
+        avertissement:
+          type: string
+        source_reelle:
+          type: string
+    PredictIn:
       type: object
       additionalProperties: false
-      required: [terme, croissance_pct, statut]
+      required: [title]
       properties:
-        terme:
+        title:
           type: string
-        croissance_pct:
-          type: number
-        statut:
+          minLength: 1
+        category:
           type: string
-          enum: ['émergent', stable, en baisse]
+        group:
+          type: string
+    PredictOut:
+      type: object
+      additionalProperties: true
+      required: [title, group, last_month, series]
+      properties:
+        title:
+          type: string
+        group:
+          type: string
+        last_month:
+          $ref: '#/components/schemas/Ym'
+        series:
+          type: object
+          additionalProperties: true
+        t0:
+          type: [string, 'null']
+        label:
+          type: [string, 'null']
+        proba_tendance:
+          type: [number, 'null']
+        message:
+          type: string
+    ScanStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        running:
+          type: boolean
+        progress:
+          type: [string, 'null']
+        error:
+          type: [string, 'null']
+        result:
+          type: [object, 'null']
     Signal:
       type: object
       additionalProperties: false
@@ -475,11 +684,15 @@ components:
           maximum: 100
         croissance_pct:
           type: [number, 'null']
-          description: Renseigné seulement si enrichi via l'API Data
+          description: >
+            Legacy graine ; l'API Data n'expose plus croissance_pct
+            (voir growth_since_t0 sur ScanRow). Rester null — ne pas inventer.
         statut_data:
           type: [string, 'null']
           enum: ['émergent', stable, en baisse, null]
-          description: Statut Data si disponible, sinon null
+          description: >
+            Legacy (ancien contrat /tendances). Data utilise label
+            Tendance durable|Buzz. Rester null — ne pas inventer.
         cc:
           type: string
           description: Code pays ISO alpha-2

@@ -1,53 +1,165 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "API Tendances Givaudan",
-    "description": "Brique Data : détecte les ingrédients en tendance émergente",
-    "version": "0.1-dummy"
+    "title": "Radar de tendances : buzz ou tendance durable",
+    "description": "Contrat de l'API Data (repo malickl/trend-radar). Source : docs/API.md + FastAPI /docs. Pas de route /tendances.",
+    "version": "v1",
+    "externalDocs": {
+      "description": "Repo Data trend-radar",
+      "url": "https://github.com/malickl/trend-radar"
+    }
   },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "uvicorn src.api:app"
+    }
+  ],
   "paths": {
     "/health": {
       "get": {
-        "summary": "Health",
-        "operationId": "health_health_get",
+        "operationId": "health",
+        "summary": "Santé du service Data",
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": { "application/json": { "schema": {} } }
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Health" }
+              }
+            }
           }
         }
       }
     },
-    "/tendances": {
-      "post": {
-        "summary": "Tendances",
-        "operationId": "tendances_tendances_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/Requete" }
-            }
-          },
-          "required": true
-        },
+    "/scan/latest": {
+      "get": {
+        "operationId": "scanLatest",
+        "summary": "Dernier scan (liste des signaux prédits)",
+        "description": "Appel principal. En DEMO_MODE=1 (défaut) : 45 sujets + champs fictifs (demo_fictif). En DEMO_MODE=0 : CSV réel sans champs fictifs.",
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Scan disponible",
             "content": {
               "application/json": {
-                "schema": {
-                  "items": { "$ref": "#/components/schemas/Tendance" },
-                  "type": "array",
-                  "title": "Response Tendances Tendances Post"
-                }
+                "schema": { "$ref": "#/components/schemas/ScanLatest" }
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "404": {
+            "description": "Aucun scan disponible"
+          }
+        }
+      }
+    },
+    "/predict": {
+      "post": {
+        "operationId": "predict",
+        "summary": "Prédiction pour un sujet Wikipédia",
+        "parameters": [
+          {
+            "name": "last",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "pattern": "^[0-9]{6}$" }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "pattern": "^[0-9]{6}$" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PredictIn" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prédiction (label peut être null si pas de décollage)",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+                "schema": { "$ref": "#/components/schemas/PredictOut" }
+              }
+            }
+          },
+          "404": { "description": "Page Wikipédia introuvable" },
+          "422": { "description": "category/group invalide" },
+          "503": { "description": "Wikipédia indisponible" }
+        }
+      }
+    },
+    "/predict_features": {
+      "post": {
+        "operationId": "predictFeatures",
+        "summary": "Prédiction à partir des 9 variables du modèle",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FeaturesIn" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prédiction",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PredictFeaturesOut" }
+              }
+            }
+          },
+          "422": { "description": "Validation" }
+        }
+      }
+    },
+    "/scan/run": {
+      "post": {
+        "operationId": "scanRun",
+        "summary": "Lance un scan en arrière-plan",
+        "parameters": [
+          {
+            "name": "last",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "pattern": "^[0-9]{6}$" }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "pattern": "^[0-9]{6}$" }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Scan lancé",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ScanRunAccepted" }
+              }
+            }
+          },
+          "409": { "description": "Scan déjà en cours" },
+          "422": { "description": "Paramètres invalides" }
+        }
+      }
+    },
+    "/scan/status": {
+      "get": {
+        "operationId": "scanStatus",
+        "summary": "État du scan en cours ou du dernier lancé",
+        "responses": {
+          "200": {
+            "description": "État",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ScanStatus" }
               }
             }
           }
@@ -57,54 +169,247 @@
   },
   "components": {
     "schemas": {
-      "HTTPValidationError": {
+      "Health": {
+        "type": "object",
+        "required": ["status", "model_version", "k", "model"],
         "properties": {
-          "detail": {
-            "items": { "$ref": "#/components/schemas/ValidationError" },
+          "status": { "type": "string", "examples": ["ok"] },
+          "model_version": { "type": "string" },
+          "k": { "type": "integer" },
+          "model": { "type": "string" }
+        }
+      },
+      "Label": {
+        "type": "string",
+        "enum": ["Tendance durable", "Buzz"]
+      },
+      "Ym": {
+        "type": "string",
+        "pattern": "^[0-9]{6}$",
+        "description": "Mois AAAAMM"
+      },
+      "VeilleSource": {
+        "type": "object",
+        "required": ["titre", "url"],
+        "properties": {
+          "titre": { "type": "string" },
+          "url": { "type": "string", "format": "uri" }
+        }
+      },
+      "Veille": {
+        "type": "object",
+        "properties": {
+          "resume": { "type": "string" },
+          "sources": {
             "type": "array",
-            "title": "Detail"
+            "items": { "$ref": "#/components/schemas/VeilleSource" }
           }
-        },
-        "type": "object",
-        "title": "HTTPValidationError"
+        }
       },
-      "Requete": {
-        "properties": {
-          "termes": {
-            "items": { "type": "string" },
-            "type": "array",
-            "title": "Termes",
-            "default": ["Yuzu", "Matcha", "Vanilla"]
-          }
-        },
+      "HistoriquePoint": {
         "type": "object",
-        "title": "Requete"
-      },
-      "Tendance": {
+        "required": ["mois", "label", "proba_tendance"],
         "properties": {
-          "terme": { "type": "string", "title": "Terme" },
-          "croissance_pct": { "type": "number", "title": "Croissance Pct" },
-          "statut": { "type": "string", "title": "Statut" }
-        },
+          "mois": { "$ref": "#/components/schemas/Ym" },
+          "label": { "$ref": "#/components/schemas/Label" },
+          "proba_tendance": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      },
+      "ScanRow": {
         "type": "object",
-        "required": ["terme", "croissance_pct", "statut"],
-        "title": "Tendance"
-      },
-      "ValidationError": {
+        "required": [
+          "title",
+          "group",
+          "t0",
+          "proba_tendance",
+          "label",
+          "verdict_verifiable_le"
+        ],
         "properties": {
-          "loc": {
-            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
-            "type": "array",
-            "title": "Location"
+          "title": { "type": "string" },
+          "group": { "type": "string" },
+          "t0": { "$ref": "#/components/schemas/Ym" },
+          "base": { "type": "number" },
+          "record_24m": { "type": "number" },
+          "ratio_now": { "type": "number" },
+          "max_ratio": { "type": "number" },
+          "jump_t0": { "type": "number" },
+          "growth_since_t0": { "type": "number" },
+          "volatility": { "type": "number" },
+          "seasonality": { "type": "number" },
+          "proba_tendance": { "type": "number", "minimum": 0, "maximum": 1 },
+          "label": { "$ref": "#/components/schemas/Label" },
+          "verdict_verifiable_le": { "$ref": "#/components/schemas/Ym" },
+          "exclu_raison": {
+            "type": ["string", "null"],
+            "description": "null = cas valide"
           },
-          "msg": { "type": "string", "title": "Message" },
-          "type": { "type": "string", "title": "Error Type" },
-          "input": { "title": "Input" },
-          "ctx": { "type": "object", "title": "Context" }
-        },
+          "demo_fictif": {
+            "type": "boolean",
+            "description": "Présent en mode démo"
+          },
+          "domaine": { "type": "string", "description": "Fictif en démo" },
+          "country": {
+            "type": "string",
+            "description": "ISO alpha-2, fictif en démo"
+          },
+          "country_source": {
+            "type": "string",
+            "enum": ["origine", "aleatoire"]
+          },
+          "lat": { "type": "number", "description": "Fictif en démo" },
+          "lon": { "type": "number", "description": "Fictif en démo" },
+          "element_cle": { "type": "string", "description": "Fictif en démo" },
+          "veille": { "$ref": "#/components/schemas/Veille" },
+          "matieres_premieres": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Fictif en démo"
+          },
+          "date_prediction": {
+            "$ref": "#/components/schemas/Ym",
+            "description": "Fictif en démo"
+          },
+          "historique": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/HistoriquePoint" },
+            "description": "Fictif en démo"
+          }
+        }
+      },
+      "ScanLatest": {
         "type": "object",
-        "required": ["loc", "msg", "type"],
-        "title": "ValidationError"
+        "required": ["file", "last_month", "n", "rows"],
+        "properties": {
+          "file": { "type": "string" },
+          "last_month": { "$ref": "#/components/schemas/Ym" },
+          "n": { "type": "integer" },
+          "rows": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ScanRow" }
+          },
+          "demo_fictif": { "type": "boolean" },
+          "avertissement": { "type": "string" },
+          "source_reelle": { "type": "string" }
+        }
+      },
+      "PredictIn": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": { "type": "string" },
+          "category": { "type": "string" },
+          "group": { "type": "string" }
+        }
+      },
+      "FeaturesIn": {
+        "type": "object",
+        "required": [
+          "group",
+          "base",
+          "record_24m",
+          "ratio_now",
+          "max_ratio",
+          "jump_t0",
+          "growth_since_t0",
+          "volatility",
+          "seasonality"
+        ],
+        "properties": {
+          "group": { "type": "string" },
+          "base": { "type": "number" },
+          "record_24m": { "type": "number" },
+          "ratio_now": { "type": "number" },
+          "max_ratio": { "type": "number" },
+          "jump_t0": { "type": "number" },
+          "growth_since_t0": { "type": "number" },
+          "volatility": { "type": "number" },
+          "seasonality": { "type": "number" }
+        }
+      },
+      "TopRaison": {
+        "type": "object",
+        "properties": {
+          "variable": { "type": "string" },
+          "valeur": { "type": "number" },
+          "phrase": { "type": "string" },
+          "mediane_buzz": { "type": "number" },
+          "mediane_tendance": { "type": "number" }
+        }
+      },
+      "PredictOut": {
+        "type": "object",
+        "required": ["title", "group", "last_month", "series"],
+        "properties": {
+          "title": { "type": "string" },
+          "group": { "type": "string" },
+          "source": { "type": "string" },
+          "last_month": { "$ref": "#/components/schemas/Ym" },
+          "series": {
+            "type": "object",
+            "properties": {
+              "months": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/Ym" }
+              },
+              "views": { "type": "array", "items": { "type": "integer" } }
+            }
+          },
+          "t0": { "type": ["string", "null"] },
+          "label": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/Label" },
+              { "type": "null" }
+            ]
+          },
+          "proba_tendance": { "type": ["number", "null"] },
+          "features": { "type": "object" },
+          "top_raisons": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TopRaison" }
+          },
+          "verdict_verifiable_le": { "type": "string" },
+          "message": { "type": "string" },
+          "avertissement": { "type": "string" }
+        }
+      },
+      "PredictFeaturesOut": {
+        "type": "object",
+        "required": ["label", "proba_tendance", "features"],
+        "properties": {
+          "label": { "$ref": "#/components/schemas/Label" },
+          "proba_tendance": { "type": "number" },
+          "features": { "type": "object" },
+          "top_raisons": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TopRaison" }
+          }
+        }
+      },
+      "ScanRunAccepted": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "last_month": { "type": "string" },
+          "suivi": { "type": "string" }
+        }
+      },
+      "ScanStatus": {
+        "type": "object",
+        "properties": {
+          "running": { "type": "boolean" },
+          "trigger": { "type": ["string", "null"] },
+          "last_month": { "type": ["string", "null"] },
+          "since": { "type": ["string", "null"] },
+          "started_at": { "type": ["string", "null"] },
+          "finished_at": { "type": ["string", "null"] },
+          "progress": { "type": ["string", "null"] },
+          "result": { "type": ["object", "null"] },
+          "error": { "type": ["string", "null"] },
+          "auto": { "type": "object" },
+          "dernier_fichier": { "type": ["string", "null"] },
+          "dernier_mois_complet": { "type": "string" }
+        }
       }
     }
   }

@@ -1,95 +1,76 @@
 # Alignement contrat Data ↔ signaux TrendRadar
 
-- Statut : **décision de spike** (issue [#27](https://github.com/MYCHA-Hetic-Hackathon-Givaudan-2026/hackathon-app/issues/27))
+- Statut : **conforme routes Data** (proxy monolithe) + écarts de schéma documentés
 - Date : 2026-11-12
-- Public : équipes `data` et monolithe (`api` / `web`)
+- Sources : [malickl/trend-radar](https://github.com/malickl/trend-radar) (`docs/API.md`), [`openapi.json`](./openapi.json), [`openapi.yaml`](../../openapi.yaml)
 
 ## Contexte
 
-Le globe TrendRadar consomme `GET /api/signaux` (schéma `Signal` dans [`openapi.yaml`](../../openapi.yaml)). La graine démo (`db/init/003-signaux.sql`) fournit les 45 signaux du mockup.
+L’API Data réelle (trend-radar) **n’expose pas** `POST /tendances`. L’ancien contrat monolithe `0.1-dummy` (`terme` / `croissance_pct` / `statut`) est **obsolète** et a été remplacé.
 
-L’API Data expose `POST /tendances` ([`openapi.json`](./openapi.json), version `0.1-dummy`). Le monolithe la proxifie via `POST /api/tendances` (`DATA_AI_URL`).
+| Rôle                     | Contrat / route                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------- |
+| Data (amont)             | [`openapi.json`](./openapi.json) — `/health`, `/scan/latest`, `/predict`, …                 |
+| Proxy monolithe          | `GET /api/data/health`, `GET /api/scan/latest`, `POST /api/predict`, `GET /api/scan/status` |
+| Globe (schéma monolithe) | `GET /api/signaux` → schéma `Signal` (graine SQL démo)                                      |
 
-**Règle** : tant qu’un champ n’est pas dans le contrat Data **et** recopié dans `openapi.yaml`, le monolithe sert la graine démo. On ne fabrique pas de faux scores Data.
+**Règle** : pas de faux scores. On ne mappe pas `growth_since_t0` → `croissance_pct` ni `label` → `statut_data`. Les champs fictifs Data (`demo_fictif`) ne sont pas réécrits en « vrais » champs monolithe sans accord.
 
-## Contrat Data actuel (`Tendance`)
+## Routes : conformité
 
-| Champ            | Type   | Notes                                 |
-| ---------------- | ------ | ------------------------------------- |
-| `terme`          | string | Identifiant textuel (ex. Yuzu)        |
-| `croissance_pct` | number | Croissance                            |
-| `statut`         | string | `émergent` \| `stable` \| `en baisse` |
+| Data (trend-radar)       | Proxy monolithe        | État                     |
+| ------------------------ | ---------------------- | ------------------------ |
+| `GET /health`            | `GET /api/data/health` | Conforme                 |
+| `GET /scan/latest`       | `GET /api/scan/latest` | Conforme                 |
+| `POST /predict`          | `POST /api/predict`    | Conforme                 |
+| `GET /scan/status`       | `GET /api/scan/status` | Conforme                 |
+| `POST /predict_features` | _(non proxifié)_       | Hors besoin UI actuelle  |
+| `POST /scan/run`         | _(non proxifié)_       | Ops Data                 |
+| `POST /tendances`        | **supprimé**           | N’existait pas côté Data |
 
-C’est tout. Pas de profil T/B, pas de confiance, pas de géo, pas de matières ni de calendrier.
+`DATA_AI_URL` pointe vers la base trend-radar (ex. `http://127.0.0.1:8000`). Le proxy ajoute `ngrok-skip-browser-warning` pour les tunnels.
 
-## Écart champ par champ (Signal monolithe)
+## Écart schémas : `Signal` ↔ `ScanRow`
 
-| Champ monolithe (`Signal`)                  | Présent Data ?     | Source autorisée aujourd’hui                        | Inventer ? |
-| ------------------------------------------- | ------------------ | --------------------------------------------------- | ---------- |
-| `nom`                                       | via `terme`\*      | Seed ; matching texte éventuel avec `terme`         | Non        |
-| `croissance_pct`                            | **oui**            | `null` en seed ; enrichissable si match `terme`     | Non        |
-| `statut_data`                               | **oui** (`statut`) | `null` en seed ; enrichissable si match `terme`     | Non        |
-| `profil` (`durable`\|`buzz`)                | **non**            | Seed démo uniquement                                | **Non**    |
-| `confiance_pct`                             | **non**            | Seed démo uniquement                                | **Non**    |
-| `lat` / `lon`                               | **non**            | Seed démo uniquement                                | **Non**    |
-| `pays` / `cc`                               | **non**            | Seed démo uniquement                                | **Non**    |
-| `famille` / `domaine`                       | **non**            | Seed démo uniquement                                | **Non**    |
-| `ce_qui_plait`                              | **non**            | Seed démo uniquement                                | **Non**    |
-| `veille_resume`                             | **non**            | Seed démo uniquement                                | **Non**    |
-| `matieres[]`                                | **non**            | Seed démo uniquement                                | **Non**    |
-| `decollage` / `predit_en` / `verifiable_en` | **non**            | Seed démo uniquement                                | **Non**    |
-| `sources[]` (détail)                        | **non**            | Dérivées côté monolithe (Wikipedia / Trends / News) | N/A        |
+Le globe garde `Signal` (noms produit monolithe). Data sert `ScanRow` via `/scan/latest`.
 
-\*Le matching `nom` ↔ `terme` est une convention d’intégration, pas un nouveau champ Data.
+| `Signal` (monolithe)       | `ScanRow` (Data)                   | Mapping ?                          | Réel / fictif démo |
+| -------------------------- | ---------------------------------- | ---------------------------------- | ------------------ |
+| `nom`                      | `title`                            | Oui (rename)                       | Réel               |
+| `famille`                  | `group`                            | Oui                                | Réel               |
+| `domaine`                  | `domaine`                          | Oui                                | **Fictif** démo    |
+| `profil` `durable`\|`buzz` | `label` `Tendance durable`\|`Buzz` | Oui (enum)                         | Réel               |
+| `confiance_pct` 50–100     | `proba_tendance` 0–1               | Oui (×100) ; buzz peut être &lt;50 | Réel               |
+| `croissance_pct`           | — (`growth_since_t0` ≠ %)          | **Non** — rester `null`            | N/A                |
+| `statut_data`              | — (pas émergent/stable/en baisse)  | **Non** — rester `null`            | N/A                |
+| `cc`                       | `country`                          | Oui                                | **Fictif** démo    |
+| `pays`                     | —                                  | **Absent** Data                    | —                  |
+| `lat` / `lon`              | `lat` / `lon`                      | Oui                                | **Fictif** démo    |
+| `ce_qui_plait`             | `element_cle`                      | Oui                                | **Fictif** démo    |
+| `veille_resume`            | `veille.resume`                    | Oui                                | **Fictif** démo    |
+| `matieres[]`               | `matieres_premieres`               | Oui                                | **Fictif** démo    |
+| `decollage`                | `t0`                               | Oui                                | Réel               |
+| `predit_en`                | `date_prediction`                  | Oui                                | **Fictif** démo    |
+| `verifiable_en`            | `verdict_verifiable_le`            | Oui                                | Réel               |
+| `sources[]` `{label,url}`  | `veille.sources[]` `{titre,url}`   | Oui (rename)                       | Liens réels        |
 
-## Décision (tranche actuelle)
+En `DEMO_MODE=0`, Data **n’envoie plus** domaine / geo / veille / matières / `date_prediction`. Le monolithe conserve alors la **graine** pour le globe.
 
-1. **Profil, confiance, géo et métadonnées TrendRadar** restent sur la **graine démo**. Aucun mapping local du type « `statut === émergent` ⇒ `profil = buzz` » (hors périmètre explicite du plan).
-2. **Seuls** `croissance_pct` et `statut` du contrat Data peuvent enrichir `Signal.croissance_pct` et `Signal.statut_data`, et seulement :
-   - si `DATA_AI_URL` est configurée,
-   - si un `terme` Data correspond au `nom` du signal (égalité insensible à la casse, trim),
-   - sans inventer de valeur quand Data ne répond pas ou ne match pas (`null` conservé).
-3. On **ne modifie pas** [`openapi.json`](./openapi.json) unilatéralement. Toute extension passe par l’équipe Data, puis recopie contract-first dans `openapi.yaml` (ADR 0006).
+## Décisions
 
-## Proposition d’extension pour l’équipe Data
+1. **Proxies** alignés sur trend-radar ; ancien `POST /api/tendances` retiré du contrat et du code.
+2. **`GET /api/signaux`** reste la graine démo (IDs stables pour suivis). Consommer Data brut via `/api/scan/latest`.
+3. **Pas d’adaptateur Signal ← ScanRow** dans cette PR (évite d’ingérer des champs `demo_fictif` comme vérité). Suite possible : ticket dédié avec règles de mapping + filtre `exclu_raison === null`.
+4. On **ne réécrit pas** l’ADR 0006 (proposée) : seul l’exemple `/tendances` dans son texte est daté ; le principe contract-first tient. Mise à jour ADR = PR séparée si le Tech Lead le demande.
 
-À discuter / implémenter **côté Data** (pas un engagement monolithe). Objectif : remplacer progressivement la graine pour les champs critiques globe.
-
-Champs demandés (mockup TrendRadar / brief CMI) :
-
-| Champ proposé Data                          | Type / contraintes       | Usage globe                     |
-| ------------------------------------------- | ------------------------ | ------------------------------- |
-| `profil`                                    | enum `durable` \| `buzz` | Marker T vs B, filtres chips    |
-| `confiance_pct`                             | integer 50–100           | Taille marker, slider confiance |
-| `lat` / `lon`                               | number (WGS84)           | Position sur le globe           |
-| `pays` / `cc`                               | string / ISO alpha-2     | Rapport, callout                |
-| `famille` / `domaine`                       | string                   | Rapport                         |
-| `ce_qui_plait`                              | string                   | Rapport                         |
-| `veille_resume`                             | string                   | Rapport                         |
-| `matieres`                                  | string[]                 | Rapport                         |
-| `decollage` / `predit_en` / `verifiable_en` | string `YYYYMM`          | Filtres 7/30/90 j, rapport      |
-
-Options d’API (à trancher par Data) :
-
-1. **Étendre** le schéma `Tendance` de `POST /tendances` avec les champs ci-dessus (nullable tant que non calculés).
-2. **Nouveau** endpoint dédié (ex. `GET /signaux` ou `POST /signaux`) si le modèle « termes → tendance » ne couvre pas le catalogue globe.
-
-Dans les deux cas : publier le Swagger Data à jour, puis le monolithe met à jour `docs/data/openapi.json` **depuis leur contrat**, et seulement ensuite `openapi.yaml` + code.
-
-## Ticket de suite (hors spike)
-
-Feature optionnelle (T8 plan) : [#28](https://github.com/MYCHA-Hetic-Hackathon-Givaudan-2026/hackathon-app/issues/28) — brancher l’enrichissement `croissance_pct` / `statut_data` sur `GET /api/signaux` (et affichage rapport) via `POST /api/tendances`, sans toucher profil / geo / confiance.
-
-Critère : **aucun champ inventé hors OpenAPI**.
-
-## Vérification rapide
+## Vérification
 
 ```bash
-# Contrat Data tel quel
-jq '.components.schemas.Tendance' docs/data/openapi.json
+# Contrat Data
+jq '.paths | keys' docs/data/openapi.json
+# → ["/health","/predict","/predict_features","/scan/latest","/scan/run","/scan/status"]
 
-# Champs Signal monolithe (extrait)
-# openapi.yaml → components.schemas.Signal
+# Proxy (Data doit tourner, DATA_AI_URL configurée)
+curl -s localhost:3000/api/data/health
+curl -s localhost:3000/api/scan/latest | jq '{n, demo_fictif, title: .rows[0].title}'
 ```
-
-Si Data n’a pas encore étendu le contrat : la démo jury s’appuie sur la graine ; `curl`/`GET /api/signaux` peut renvoyer `croissance_pct: null` et `statut_data: null`.
