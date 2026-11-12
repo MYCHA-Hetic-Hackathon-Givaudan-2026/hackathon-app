@@ -10,6 +10,25 @@
   background: var(--tr-bg);
 }
 
+.landing__theme {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 2;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--tr-border-strong);
+  background: var(--tr-bg-panel);
+  color: var(--tr-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.landing__theme:hover {
+  border-color: var(--tr-accent-border);
+}
+
 .landing__atmosphere {
   position: absolute;
   inset: 0;
@@ -32,7 +51,7 @@
   right: -8%;
   background: radial-gradient(
     circle,
-    rgba(200, 245, 66, 0.22),
+    rgba(134, 182, 239, 0.22),
     transparent 68%
   );
 }
@@ -44,7 +63,7 @@
   left: -10%;
   background: radial-gradient(
     circle,
-    rgba(52, 211, 153, 0.16),
+    rgba(217, 119, 87, 0.16),
     transparent 70%
   );
   animation-delay: -4s;
@@ -55,6 +74,7 @@
   position: absolute;
   left: 50%;
   top: 42%;
+  translate: -50% -50%;
   opacity: 0.42;
   animation: landing-orb-breathe 6s ease-in-out infinite;
 }
@@ -75,124 +95,107 @@
   margin: 0;
   font-family: var(--tr-font-display);
   font-size: clamp(2.4rem, 7vw, 3.6rem);
-  font-weight: 600;
-  letter-spacing: -0.04em;
+  font-weight: 700;
+  letter-spacing: 0.6px;
   line-height: 1;
   color: var(--tr-text-strong);
 }
 
 .landing__brand span {
-  color: var(--tr-lime);
-  font-weight: 500;
+  color: var(--tr-clay-light);
 }
 
 .landing__headline {
   margin: 0;
   font-family: var(--tr-font-display);
-  font-size: clamp(1.35rem, 3.4vw, 1.85rem);
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
   color: var(--tr-text);
 }
 
 .landing__lead {
   margin: 0;
-  max-width: 32rem;
   font-size: 1rem;
   line-height: 1.55;
   color: var(--tr-text-muted);
+  max-width: 32rem;
 }
 
 .landing__cta {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .landing__btn {
-  appearance: none;
-  border-radius: 999px;
-  padding: 14px 22px;
-  font-family: var(--tr-font-display);
-  font-size: 0.95rem;
+  height: 46px;
+  padding: 0 20px;
+  border-radius: 10px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 14px;
+  border: 1px solid transparent;
   transition:
-    transform 160ms ease,
-    background 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.landing__btn:focus-visible {
-  outline: 2px solid var(--tr-focus);
-  outline-offset: 3px;
-}
-
-.landing__btn:active {
-  transform: translateY(1px);
+    background 0.18s,
+    border-color 0.18s,
+    color 0.18s;
 }
 
 .landing__btn--primary {
-  border: 1px solid transparent;
-  background: var(--tr-lime);
-  color: #0a1208;
-  box-shadow: 0 0 0 0 rgba(200, 245, 66, 0.35);
+  background: var(--tr-accent);
+  color: var(--tr-text-inverse);
+  border-color: var(--tr-accent);
 }
 
 .landing__btn--primary:hover {
-  background: var(--tr-lime-soft);
-  box-shadow: 0 0 28px rgba(200, 245, 66, 0.28);
+  filter: brightness(1.06);
 }
 
 .landing__btn--ghost {
-  border: 1px solid var(--tr-border-strong);
   background: transparent;
-  color: var(--tr-text-strong);
+  color: var(--tr-text);
+  border-color: var(--tr-border-strong);
 }
 
 .landing__btn--ghost:hover {
-  border-color: var(--tr-lime-border);
-  background: var(--tr-lime-dim);
-  color: var(--tr-lime);
-}
-
-@keyframes landing-rise {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  border-color: rgba(225, 224, 217, 0.35);
 }
 
 @keyframes landing-drift {
   from {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate(0, 0) scale(1);
   }
   to {
-    transform: translate3d(-3%, 4%, 0) scale(1.06);
+    transform: translate(-3%, 4%) scale(1.06);
   }
 }
 
 @keyframes landing-orb-breathe {
   0%,
   100% {
-    opacity: 0.36;
     transform: translate(-50%, -50%) scale(1);
+    opacity: 0.38;
   }
   50% {
-    opacity: 0.52;
-    transform: translate(-50%, -50%) scale(1.04);
+    transform: translate(-50%, -50%) scale(1.06);
+    opacity: 0.5;
   }
 }
 
-@media (max-width: 640px) {
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 560px) {
   .landing__cta {
     flex-direction: column;
     width: 100%;
@@ -200,11 +203,5 @@
 
   .landing__btn {
     width: 100%;
-    text-align: center;
-  }
-
-  .landing__orb {
-    top: 28%;
-    opacity: 0.28;
   }
 }
