@@ -6,6 +6,8 @@ Il donne à toute l'organisation le même poste de travail : API, front, Postgre
 
 Les décisions de stack, de branches et de revue sont dans [`docs/adr/`](docs/adr/). Le contrat de l'API Data est [`docs/data/openapi.json`](docs/data/openapi.json).
 
+Vision produit, écarts au plan, lexique et schémas : [`docs/PROJET.md`](docs/PROJET.md). Backlog features futures : [`docs/TODO.md`](docs/TODO.md).
+
 ## Équipes
 
 Organisation GitHub : `MYCHA-Hetic-Hackathon-Givaudan-2026`. Tech Lead : Yann N'DA. Le tableau Project `Hackathon` a ses propres droits (détail dans [`docs/github-project-visibilite.md`](docs/github-project-visibilite.md)).
