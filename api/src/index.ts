@@ -238,5 +238,83 @@ app.get('/api/signaux/:id', async (req, res) => {
   res.json({ ...signal, sources: sourcesFor(signal.nom) });
 });
 
+type SuiviRow = {
+  id: number;
+  signal_id: number;
+  created_at: Date;
+};
+
+const SUIVI_SELECT = `
+  SELECT
+    s.id,
+    s.signal_id,
+    s.created_at,
+    to_jsonb(sig) AS signal
+  FROM suivis s
+  JOIN signaux sig ON sig.id = s.signal_id
+`;
+
+app.get('/api/suivis', async (_req, res) => {
+  const { rows } = await db.query(
+    `${SUIVI_SELECT} ORDER BY s.created_at DESC, s.id DESC`,
+  );
+  res.json(rows);
+});
+
+app.post('/api/suivis', async (req, res) => {
+  const raw = req.body?.signal_id;
+  const signal_id = Number(raw);
+  if (!Number.isInteger(signal_id) || signal_id < 1) {
+    res.status(400).json({ error: 'signal_id manquant' });
+    return;
+  }
+
+  const existing = await db.query<SignalRow>(
+    'SELECT id FROM signaux WHERE id = $1',
+    [signal_id],
+  );
+  if (existing.rows.length === 0) {
+    res.status(404).json({ error: 'Signal introuvable' });
+    return;
+  }
+
+  try {
+    const inserted = await db.query<SuiviRow>(
+      'INSERT INTO suivis (signal_id) VALUES ($1) RETURNING id, signal_id, created_at',
+      [signal_id],
+    );
+    const row = inserted.rows[0];
+    const { rows } = await db.query(`${SUIVI_SELECT} WHERE s.id = $1`, [
+      row.id,
+    ]);
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code: string }).code === '23505'
+    ) {
+      res.status(409).json({ error: 'Signal déjà suivi' });
+      return;
+    }
+    throw error;
+  }
+});
+
+app.delete('/api/suivis/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) {
+    res.status(400).json({ error: 'id invalide' });
+    return;
+  }
+  const { rowCount } = await db.query('DELETE FROM suivis WHERE id = $1', [id]);
+  if (!rowCount) {
+    res.status(404).json({ error: 'Suivi introuvable' });
+    return;
+  }
+  res.status(204).end();
+});
+
 // Sans adresse, Node écoute sur toutes les interfaces : joignable hors du conteneur
 app.listen(PORT, () => console.log(`API sur http://localhost:${PORT}`));
