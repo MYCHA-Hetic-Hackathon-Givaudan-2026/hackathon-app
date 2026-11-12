@@ -9,10 +9,19 @@ import {
 export type SignalReportProps = {
   /** Signal déjà connu via la liste (affichage immédiat). */
   signal: Signal;
+  followed: boolean;
+  followBusy?: boolean;
+  onToggleFollow: () => void;
   onClose: () => void;
 };
 
-export function SignalReport({ signal, onClose }: SignalReportProps) {
+export function SignalReport({
+  signal,
+  followed,
+  followBusy = false,
+  onToggleFollow,
+  onClose,
+}: SignalReportProps) {
   const titleId = useId();
   const [detail, setDetail] = useState<SignalDetail | null>(null);
   const [sourcesError, setSourcesError] = useState<string | null>(null);
@@ -124,9 +133,14 @@ export function SignalReport({ signal, onClose }: SignalReportProps) {
       <div className="signal-report__actions">
         <button
           type="button"
-          className="signal-report__btn signal-report__btn--follow"
-          disabled
-          title="Disponible dans une prochaine itération"
+          className={
+            followed
+              ? 'signal-report__btn signal-report__btn--follow signal-report__btn--follow-on'
+              : 'signal-report__btn signal-report__btn--follow'
+          }
+          aria-pressed={followed}
+          disabled={followBusy}
+          onClick={onToggleFollow}
         >
           <svg
             width="16"
@@ -141,7 +155,7 @@ export function SignalReport({ signal, onClose }: SignalReportProps) {
           >
             <path d="M12 21s-7-4.5-7-10a7 7 0 0114 0c0 5.5-7 10-7 10z" />
           </svg>
-          Suivre
+          {followed ? 'Suivi' : 'Suivre'}
         </button>
         <button
           type="button"

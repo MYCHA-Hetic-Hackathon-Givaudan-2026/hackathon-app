@@ -7,7 +7,8 @@ info:
   description: >
     Contrat HTTP de l'API du monolithe hackathon-app.
     Santé, ressource d'exemple « questions », proxy Data `/api/tendances`,
-    et graine démo TrendRadar `/api/signaux` (profil, géo, confiance).
+    graine démo TrendRadar `/api/signaux` (profil, géo, confiance),
+    et suivis persistés `/api/suivis`.
     Source de vérité, voir docs/adr/0006-contrat-api-openapi.md.
     Le service Data en amont a son propre contrat : docs/data/openapi.json.
     POST /api/tendances n'est que le proxy du monolithe.
@@ -254,6 +255,119 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 error: Signal introuvable
+  /api/suivis:
+    get:
+      operationId: listSuivis
+      summary: Liste les signaux suivis
+      description: >
+        Chaque suivi référence un signal par clé étrangère (pas de copie de
+        score). Le signal joint sert le menu « Signaux suivis ».
+      responses:
+        '200':
+          description: Liste éventuellement vide
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Suivi'
+              example:
+                - id: 1
+                  signal_id: 1
+                  created_at: '2026-11-12T12:00:00.000Z'
+                  signal:
+                    id: 1
+                    nom: Maritozzo
+                    famille: Desserts
+                    domaine: Goût
+                    profil: durable
+                    confiance_pct: 96
+                    croissance_pct: null
+                    statut_data: null
+                    cc: IT
+                    pays: Italie
+                    lat: 41.91
+                    lon: 12.51
+                    ce_qui_plait: >
+                      La brioche moelleuse fendue et débordante de crème
+                      fouettée vanillée
+                    veille_resume: La brioche romaine à la crème…
+                    matieres:
+                      [Farine de blé, Crème fraîche, Vanille, Zeste d'orange]
+                    decollage: '202601'
+                    predit_en: '202607'
+                    verifiable_en: '202801'
+                    created_at: '2026-11-12T12:00:00.000Z'
+    post:
+      operationId: createSuivi
+      summary: Suit un signal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewSuivi'
+            example:
+              signal_id: 1
+      responses:
+        '201':
+          description: Suivi créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suivi'
+        '400':
+          description: Corps invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: signal_id manquant
+        '404':
+          description: Signal inconnu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Signal introuvable
+        '409':
+          description: Signal déjà suivi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Signal déjà suivi
+  /api/suivis/{id}:
+    delete:
+      operationId: deleteSuivi
+      summary: Retire un suivi
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '204':
+          description: Suivi retiré
+        '400':
+          description: Identifiant invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Suivi inconnu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Suivi introuvable
 components:
   schemas:
     Health:
@@ -418,3 +532,27 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/SignalSource'
+    NewSuivi:
+      type: object
+      additionalProperties: false
+      required: [signal_id]
+      properties:
+        signal_id:
+          type: integer
+          minimum: 1
+    Suivi:
+      type: object
+      additionalProperties: false
+      required: [id, signal_id, created_at, signal]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        signal_id:
+          type: integer
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        signal:
+          $ref: '#/components/schemas/Signal'
