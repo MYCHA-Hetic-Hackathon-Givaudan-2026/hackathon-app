@@ -150,9 +150,10 @@ paths:
       summary: Liste les signaux démo TrendRadar
       description: >
         Graine démo (45 signaux du mockup Globe). Les champs profil, geo et
-        confiance viennent du seed, pas du contrat Data actuel.
+        confiance viennent du seed, pas du contrat Data actuel (écart documenté
+        dans docs/data/alignement-contrat-signaux.md).
         POST /api/tendances reste le proxy pour croissance/statut quand les
-        termes matchent.
+        termes matchent ; pas de faux scores hors contrat Data.
       parameters:
         - name: profil
           in: query
