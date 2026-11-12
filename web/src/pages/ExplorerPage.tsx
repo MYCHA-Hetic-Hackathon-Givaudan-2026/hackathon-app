@@ -3,7 +3,11 @@ import { AssistantPanel } from '../components/AssistantPanel';
 import { FiltersBar } from '../components/FiltersBar';
 import { GlobeCanvas } from '../components/GlobeCanvas';
 import { Header } from '../components/Header';
+import { SignalReport } from '../components/SignalReport';
 import { fetchSignaux, type Fenetre, type Signal } from '../lib/signaux';
+
+/** Décale le globe quand le panneau rapport est ouvert (mockup TrendRadar). */
+const GLOBE_SHIFT_X = -150;
 
 type ExplorerPageProps = {
   /** Depuis la landing « Nouvelle recherche » : focus l’input assistant. */
@@ -76,6 +80,12 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
     lon: Number(s.lon),
   }));
 
+  const selected =
+    selectedId == null
+      ? null
+      : (visible.find((s) => s.id === selectedId) ?? null);
+  const reportOpen = selected != null;
+
   return (
     <div className="explorer">
       <Header />
@@ -96,17 +106,31 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
             fenetre={fenetre}
             onFenetreChange={setFenetre}
           />
-          <div className="map-zone__stage">
+          <div
+            className={
+              reportOpen
+                ? 'map-zone__stage map-zone__stage--report'
+                : 'map-zone__stage'
+            }
+          >
             <GlobeCanvas
               markers={markers}
               selectedId={selectedId}
               query={query}
               onSelect={setSelectedId}
+              shiftX={reportOpen ? GLOBE_SHIFT_X : 0}
             />
             {loadError ? (
               <p className="map-zone__error" role="alert">
                 {loadError}
               </p>
+            ) : null}
+            {selected ? (
+              <SignalReport
+                key={selected.id}
+                signal={selected}
+                onClose={() => setSelectedId(null)}
+              />
             ) : null}
             <div className="map-zone__legend">
               <div className="map-zone__legend-row">
