@@ -8,7 +8,8 @@ info:
     Contrat HTTP de l'API du monolithe hackathon-app.
     Santé, ressource d'exemple « questions », proxy Data `/api/tendances`,
     graine démo TrendRadar `/api/signaux` (profil, géo, confiance),
-    et suivis persistés `/api/suivis`.
+    suivis persistés `/api/suivis`, veilles append-only via `ask()`,
+    et agent conversationnel `/api/agent/message`.
     Source de vérité, voir docs/adr/0006-contrat-api-openapi.md.
     Le service Data en amont a son propre contrat : docs/data/openapi.json.
     POST /api/tendances n'est que le proxy du monolithe.
@@ -275,6 +276,7 @@ paths:
                 - id: 1
                   signal_id: 1
                   created_at: '2026-11-12T12:00:00.000Z'
+                  has_veille: false
                   signal:
                     id: 1
                     nom: Maritozzo
@@ -368,6 +370,159 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 error: Suivi introuvable
+  /api/suivis/{id}/veille:
+    post:
+      operationId: createVeille
+      summary: Génère une veille IA et l'ajoute à l'historique
+      description: >
+        Appelle `ask()` puis insert une ligne dans `veilles` (append-only).
+        En cas d'échec IA (tunnel down, fournisseur KO), répond 502 **sans**
+        insert : l'historique existant est conservé.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant du suivi
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '201':
+          description: Veille créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veille'
+              example:
+                id: 1
+                suivi_id: 1
+                texte: >
+                  Veille Maritozzo — articles récents et intérêt de recherche
+                  en hausse sur la brioche romaine à la crème.
+                created_at: '2026-11-12T15:00:00.000Z'
+        '400':
+          description: Identifiant invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Suivi inconnu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Suivi introuvable
+        '502':
+          description: Fournisseur IA injoignable (historique inchangé)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: 'IA : fetch failed'
+        '503':
+          description: Configuration IA manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: IA non configurée (AI_BASE_URL)
+  /api/suivis/{id}/veilles:
+    get:
+      operationId: listVeilles
+      summary: Historique daté des veilles d'un suivi
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant du suivi
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Liste éventuellement vide (du plus récent au plus ancien)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Veille'
+        '400':
+          description: Identifiant invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Suivi inconnu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Suivi introuvable
+  /api/agent/message:
+    post:
+      operationId: postAgentMessage
+      summary: Message à l'assistant TrendRadar
+      description: >
+        Détecte les intents locaux (veille / suivre / focus signal par nom)
+        et, à défaut, appelle `ask()` avec un system prompt CMI court.
+        Le contexte `signal_id` optionnel sert de cible si le message ne
+        nomme pas de signal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentMessageRequest'
+            example:
+              message: Fais une veille sur Maritozzo
+              signal_id: null
+      responses:
+        '200':
+          description: Réponse assistant (éventuellement avec action)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMessageResponse'
+              example:
+                reply: >
+                  C'est fait : veille activée sur Maritozzo. Je surveille
+                  articles, lancements et recherches.
+                action:
+                  type: veille
+                  signal_id: 1
+                  suivi_id: 1
+                  veille:
+                    id: 1
+                    suivi_id: 1
+                    texte: Veille Maritozzo…
+                    created_at: '2026-11-12T15:00:00.000Z'
+        '400':
+          description: Corps invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: message manquant
+        '502':
+          description: Fournisseur IA injoignable (aucune écriture perdue)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Configuration IA manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Health:
@@ -543,7 +698,7 @@ components:
     Suivi:
       type: object
       additionalProperties: false
-      required: [id, signal_id, created_at, signal]
+      required: [id, signal_id, created_at, has_veille, signal]
       properties:
         id:
           type: integer
@@ -554,5 +709,60 @@ components:
         created_at:
           type: string
           format: date-time
+        has_veille:
+          type: boolean
+          description: True dès qu'au moins une veille append-only existe
         signal:
           $ref: '#/components/schemas/Signal'
+    Veille:
+      type: object
+      additionalProperties: false
+      required: [id, suivi_id, texte, created_at]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        suivi_id:
+          type: integer
+          minimum: 1
+        texte:
+          type: string
+          minLength: 1
+        created_at:
+          type: string
+          format: date-time
+    AgentMessageRequest:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+        signal_id:
+          type: [integer, 'null']
+          minimum: 1
+          description: Signal sélectionné sur le globe (cible de repli)
+    AgentMessageResponse:
+      type: object
+      additionalProperties: false
+      required: [reply]
+      properties:
+        reply:
+          type: string
+        action:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: [focus, follow, veille]
+            signal_id:
+              type: integer
+              minimum: 1
+            suivi_id:
+              type: integer
+              minimum: 1
+            veille:
+              $ref: '#/components/schemas/Veille'

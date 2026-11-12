@@ -110,6 +110,9 @@ export function FollowMenu({ open, suivis, onClose, onPick }: FollowMenuProps) {
                       {s.confiance_pct} % · {s.pays}
                     </span>
                   </span>
+                  {suivi.has_veille ? (
+                    <span className="follow-menu__badge">Veille</span>
+                  ) : null}
                 </button>
               );
             })
