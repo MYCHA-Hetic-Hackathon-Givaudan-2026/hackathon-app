@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { feature, mesh } from 'topojson-client';
 import type { GeometryCollection, Topology } from 'topojson-specification';
 import { drawGlobe, type GlobeMarker } from '../lib/globe/drawGlobe';
-import { hitAt, type Hit } from '../lib/globe/hitTest';
+import { hitAt, hitsNear, type Hit } from '../lib/globe/hitTest';
 import {
   clampLatRotation,
   createGlobeProjection,
@@ -16,12 +16,26 @@ type WorldTopology = Topology<{
   countries: GeometryCollection;
 }>;
 
+export type GlobeHover = {
+  id: number;
+  x: number;
+  y: number;
+};
+
 type GlobeCanvasProps = {
   markers: readonly GlobeMarker[];
   selectedId: number | null;
   query?: string;
   onSelect: (id: number | null) => void;
   shiftX?: number;
+  /** Infos signal pour le tooltip hover (nom, profil, conf…). */
+  signalById?: (id: number) => {
+    nom: string;
+    profil: 'durable' | 'buzz';
+    confiance_pct: number;
+    famille: string;
+    pays: string;
+  } | null;
 };
 
 type DragState = {
@@ -34,6 +48,8 @@ type DragState = {
 type AnimState = {
   from: Rotation;
   to: Rotation;
+  zFrom: number;
+  zTo: number;
   start: number;
   dur: number;
 };
@@ -41,8 +57,9 @@ type AnimState = {
 const WORLD_URL = '/world-countries.json';
 const FOCUS_MS = 950;
 const IDLE_SPIN_AFTER_MS = 2500;
+/** Aligné Forecastro : 0.7 → 8 (molette + boutons). */
 const ZOOM_MIN = 0.7;
-const ZOOM_MAX = 2.6;
+const ZOOM_MAX = 8;
 
 export function GlobeCanvas({
   markers,
@@ -50,6 +67,7 @@ export function GlobeCanvas({
   query = '',
   onSelect,
   shiftX = 0,
+  signalById,
 }: GlobeCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,14 +76,26 @@ export function GlobeCanvas({
   const queryRef = useRef(query);
   const shiftRef = useRef(shiftX);
   const onSelectRef = useRef(onSelect);
+  const signalByIdRef = useRef(signalById);
 
   markersRef.current = markers;
   selectedRef.current = selectedId;
   queryRef.current = query;
   shiftRef.current = shiftX;
   onSelectRef.current = onSelect;
+  signalByIdRef.current = signalById;
 
   const focusIdRef = useRef<number | null>(null);
+  const apiRef = useRef<{
+    zoomBy: (f: number) => void;
+    resetView: () => void;
+  } | null>(null);
+
+  const [hover, setHover] = useState<{
+    id: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -87,6 +117,7 @@ export function GlobeCanvas({
     let prevT = performance.now();
     let raf = 0;
     let cancelled = false;
+    let hoverId: number | null = null;
 
     const resize = () => {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -101,7 +132,50 @@ export function GlobeCanvas({
       return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
 
+    const flyTo = (lon: number, lat: number, z: number, dur = 1000) => {
+      anim = {
+        from: [...rot] as Rotation,
+        to: focusRotation(lon, lat),
+        zFrom: zoom,
+        zTo: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z)),
+        start: performance.now(),
+        dur,
+      };
+      lastInteract = performance.now();
+    };
+
+    const zoomBy = (f: number) => {
+      anim = {
+        from: [...rot] as Rotation,
+        to: [...rot] as Rotation,
+        zFrom: zoom,
+        zTo: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom * f)),
+        start: performance.now(),
+        dur: 450,
+      };
+      lastInteract = performance.now();
+    };
+
+    const resetView = () => {
+      onSelectRef.current(null);
+      anim = {
+        from: [...rot] as Rotation,
+        to: [rot[0], -20, 0],
+        zFrom: zoom,
+        zTo: 1,
+        start: performance.now(),
+        dur: 900,
+      };
+      lastInteract = performance.now();
+      setHover(null);
+      hoverId = null;
+    };
+
+    apiRef.current = { zoomBy, resetView };
+
     const onDown = (e: PointerEvent) => {
+      setHover(null);
+      hoverId = null;
       drag = {
         x: e.clientX,
         y: e.clientY,
@@ -129,25 +203,87 @@ export function GlobeCanvas({
         return;
       }
       const { x, y } = pointerPos(e);
-      canvas.style.cursor = hitAt(hits, x, y) != null ? 'pointer' : 'grab';
+      const id = hitAt(hits, x, y);
+      canvas.style.cursor = id != null ? 'pointer' : 'grab';
+      if (id !== hoverId) {
+        hoverId = id;
+        if (id == null) {
+          setHover(null);
+        } else {
+          const hp = hits.find((h) => h.id === id);
+          if (hp) {
+            setHover({
+              id,
+              x: Math.round(hp.x + 16),
+              y: Math.round(hp.y - 20),
+            });
+            lastInteract = performance.now();
+          }
+        }
+      }
     };
 
     const onUp = (e: PointerEvent) => {
       if (drag && !drag.moved) {
         const { x, y } = pointerPos(e);
-        const id = hitAt(hits, x, y);
-        if (id != null) onSelectRef.current(id);
+        const near = hitsNear(hits, x, y);
+        if (near.length > 1 && zoom < 7.5) {
+          const pts = near
+            .map((h) => markersRef.current.find((m) => m.id === h.id))
+            .filter((m): m is GlobeMarker => m != null);
+          if (pts.length) {
+            const lon = pts.reduce((a, p) => a + p.lon, 0) / pts.length;
+            const lat = pts.reduce((a, p) => a + p.lat, 0) / pts.length;
+            flyTo(lon, lat, Math.min(8, Math.max(zoom * 2.4, 3)));
+          }
+        } else if (near.length) {
+          let best = near[0];
+          let bd = 1e9;
+          for (const h of near) {
+            const d = Math.hypot(h.x - x, h.y - y);
+            if (d < bd) {
+              bd = d;
+              best = h;
+            }
+          }
+          onSelectRef.current(best.id);
+        }
       }
       drag = null;
       canvas.style.cursor = 'grab';
     };
 
+    const onLeave = () => {
+      if (hoverId != null) {
+        hoverId = null;
+        setHover(null);
+      }
+    };
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      zoom = Math.max(
-        ZOOM_MIN,
-        Math.min(ZOOM_MAX, zoom * (1 - e.deltaY * 0.0012)),
-      );
+      anim = null;
+      if (hoverId != null) {
+        hoverId = null;
+        setHover(null);
+      }
+      const f = Math.exp(-e.deltaY * 0.0015);
+      const nz = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom * f));
+      if (nz > zoom) {
+        const rc = canvas.getBoundingClientRect();
+        const g = projection.invert([e.clientX - rc.left, e.clientY - rc.top]);
+        if (g && !Number.isNaN(g[0])) {
+          const k = Math.min(0.35, (nz / zoom - 1) * 1.2);
+          let d0 = -g[0] - rot[0];
+          d0 = ((d0 + 540) % 360) - 180;
+          rot = [
+            rot[0] + d0 * k,
+            clampLatRotation(rot[1] + (-g[1] - rot[1]) * k),
+            0,
+          ];
+        }
+      }
+      zoom = nz;
       lastInteract = performance.now();
     };
 
@@ -160,12 +296,7 @@ export function GlobeCanvas({
       if (sel != null && focusIdRef.current !== sel) {
         const m = markersRef.current.find((r) => r.id === sel);
         if (m) {
-          anim = {
-            from: [...rot] as Rotation,
-            to: focusRotation(m.lon, m.lat),
-            start: now,
-            dur: FOCUS_MS,
-          };
+          flyTo(m.lon, m.lat, Math.max(zoom, 1.8), FOCUS_MS);
           lastInteract = now;
         }
         focusIdRef.current = sel;
@@ -177,6 +308,7 @@ export function GlobeCanvas({
         const k = Math.min(1, (now - anim.start) / anim.dur);
         const e = easeInOutCubic(k);
         rot = lerpRotation(anim.from, anim.to, e);
+        zoom = anim.zFrom + (anim.zTo - anim.zFrom) * e;
         if (k >= 1) anim = null;
       } else if (
         !drag &&
@@ -225,6 +357,7 @@ export function GlobeCanvas({
     canvas.addEventListener('pointermove', onMove);
     canvas.addEventListener('pointerup', onUp);
     canvas.addEventListener('pointercancel', onUp);
+    canvas.addEventListener('pointerleave', onLeave);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     const ro = new ResizeObserver(resize);
     ro.observe(wrap);
@@ -235,13 +368,17 @@ export function GlobeCanvas({
       cancelled = true;
       cancelAnimationFrame(raf);
       ro.disconnect();
+      apiRef.current = null;
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
       canvas.removeEventListener('pointercancel', onUp);
+      canvas.removeEventListener('pointerleave', onLeave);
       canvas.removeEventListener('wheel', onWheel);
     };
   }, []);
+
+  const hoverView = hover ? (signalById?.(hover.id) ?? null) : null;
 
   return (
     <div ref={wrapRef} className="map-zone__globe">
@@ -249,8 +386,99 @@ export function GlobeCanvas({
         ref={canvasRef}
         className="map-zone__globe-canvas"
         role="img"
-        aria-label="Globe terrestre des signaux : points verts pour les tendances durables, losanges roses pour les buzz"
+        aria-label="Globe des signaux : ronds bleus pour les tendances durables, losanges argile pour les buzz"
       />
+
+      {hover && hoverView ? (
+        <div
+          className="map-zone__hover"
+          style={{ left: hover.x, top: hover.y }}
+          aria-hidden="true"
+        >
+          <span className="map-zone__hover-name">{hoverView.nom}</span>
+          <span
+            className={
+              hoverView.profil === 'durable'
+                ? 'map-zone__hover-verdict map-zone__hover-verdict--t'
+                : 'map-zone__hover-verdict map-zone__hover-verdict--b'
+            }
+          >
+            <span
+              className={
+                hoverView.profil === 'durable'
+                  ? 'map-zone__dot'
+                  : 'map-zone__diamond'
+              }
+            />
+            {hoverView.profil === 'durable' ? 'Tendance durable' : 'Buzz'} ·{' '}
+            {hoverView.confiance_pct} %
+          </span>
+          <span className="map-zone__hover-meta">
+            {hoverView.famille} · {hoverView.pays}
+          </span>
+        </div>
+      ) : null}
+
+      <div className="map-zone__zoom" role="group" aria-label="Zoom">
+        <button
+          type="button"
+          className="map-zone__zoom-btn"
+          aria-label="Zoomer"
+          onClick={() => apiRef.current?.zoomBy(1.6)}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="map-zone__zoom-btn"
+          aria-label="Dézoomer"
+          onClick={() => apiRef.current?.zoomBy(1 / 1.6)}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path d="M5 12h14" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="map-zone__zoom-btn"
+          aria-label="Vue globale"
+          onClick={() => apiRef.current?.resetView()}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

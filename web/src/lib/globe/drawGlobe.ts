@@ -36,8 +36,9 @@ export type DrawGlobeArgs = {
   borders?: GeoPermissibleObjects | null;
 };
 
-const COL_T = '52,211,153';
-const COL_B = '251,113,133';
+/* Forecastro : bleu tendance / argile buzz */
+const COL_T = '134,182,239';
+const COL_B = '217,119,87';
 
 export function drawGlobe(args: DrawGlobeArgs): Hit[] {
   const {
