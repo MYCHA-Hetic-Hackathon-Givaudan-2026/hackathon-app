@@ -430,6 +430,10 @@ button {
   color: var(--tr-buzz-text);
 }
 
+.map-zone__chip[aria-pressed='false'] {
+  opacity: 0.45;
+}
+
 .map-zone__dot {
   width: 8px;
   height: 8px;
@@ -514,29 +518,34 @@ button {
   overflow: hidden;
 }
 
-.map-zone__globe-placeholder {
+.map-zone__globe {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
 }
 
-.map-zone__globe-disk {
-  width: min(52vh, 420px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background:
-    radial-gradient(
-      circle at 35% 30%,
-      rgba(200, 245, 66, 0.12),
-      transparent 45%
-    ),
-    radial-gradient(circle at 50% 55%, #152238, #0a1322 70%, #060a13 100%);
-  box-shadow:
-    0 0 0 18px rgba(148, 163, 184, 0.04),
-    0 0 80px rgba(52, 211, 153, 0.08);
+.map-zone__globe-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.map-zone__error {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%);
+  z-index: 3;
+  margin: 0;
+  max-width: min(90%, 420px);
+  padding: 10px 14px;
+  border-radius: var(--tr-radius-md);
+  border: 1px solid rgba(251, 113, 133, 0.45);
+  background: rgba(76, 5, 25, 0.85);
+  color: #fecdd3;
+  font-size: 13px;
+  text-align: center;
 }
 
 .map-zone__legend {
