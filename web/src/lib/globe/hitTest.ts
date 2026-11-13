@@ -1,8 +1,7 @@
 export type Hit = { id: number; x: number; y: number };
 
-/** Rayon de hit-test (px CSS), aligné maquette Forecastro. */
+/** Rayon de hit-test (px CSS), aligné mockup TrendRadar. */
 export const HIT_RADIUS_PX = 18;
-export const CLUSTER_RADIUS_PX = 22;
 
 export function hitAt(
   hits: readonly Hit[],
@@ -20,14 +19,4 @@ export function hitAt(
     }
   }
   return best;
-}
-
-/** Tous les hits dans un rayon (clic groupe → zoom). */
-export function hitsNear(
-  hits: readonly Hit[],
-  x: number,
-  y: number,
-  radius = CLUSTER_RADIUS_PX,
-): Hit[] {
-  return hits.filter((h) => Math.hypot(h.x - x, h.y - y) < radius);
 }

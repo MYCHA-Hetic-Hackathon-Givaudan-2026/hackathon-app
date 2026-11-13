@@ -1,120 +1,51 @@
-/* Charte Forecastro (maquette .scratch/forecastro-front) + thèmes sombre/clair */
+:root {
+  /* Surfaces nuit (Figma × TrendRadar) */
+  --tr-bg: #060a13;
+  --tr-bg-elevated: #0b1220;
+  --tr-bg-panel: rgba(9, 15, 29, 0.94);
+  --tr-bg-soft: rgba(15, 23, 42, 0.72);
+  --tr-bg-map: #0a101c;
 
-:root,
-[data-theme='dark'] {
-  color-scheme: dark;
+  /* Texte */
+  --tr-text: #e2e8f0;
+  --tr-text-strong: #f8fafc;
+  --tr-text-muted: #94a3b8;
+  --tr-text-dim: #64748b;
 
-  --tr-bg: #19213b;
-  --tr-bg-elevated: #1e2846;
-  --tr-bg-panel: #202b4c;
-  --tr-bg-soft: #2a385f;
-  --tr-bg-map: #222e50;
-  --tr-bg-input: #202b4c;
-  --tr-bg-chrome: rgba(30, 40, 70, 0.88);
+  /* Accents lime — CTA / assistant (Figma) */
+  --tr-lime: #c8f542;
+  --tr-lime-soft: #a3e635;
+  --tr-lime-dim: rgba(200, 245, 66, 0.14);
+  --tr-lime-border: rgba(200, 245, 66, 0.35);
 
-  --tr-text: #f0efec;
-  --tr-text-strong: #f0efec;
-  --tr-text-muted: #97958d;
-  --tr-text-dim: #7b7974;
-  --tr-text-warm: #c3c2b7;
-  --tr-text-inverse: #19213b;
+  /* Markers TrendRadar */
+  --tr-tendance: #34d399;
+  --tr-tendance-soft: rgba(16, 185, 129, 0.12);
+  --tr-tendance-border: rgba(52, 211, 153, 0.4);
+  --tr-tendance-text: #6ee7b7;
+  --tr-buzz: #fb7185;
+  --tr-buzz-soft: rgba(244, 63, 94, 0.12);
+  --tr-buzz-border: rgba(251, 113, 133, 0.4);
+  --tr-buzz-text: #fda4af;
 
-  /* Argile — buzz / marque ASTRO */
-  --tr-clay: #d97757;
-  --tr-clay-light: #f09978;
-  --tr-clay-soft: rgba(217, 119, 87, 0.14);
-  --tr-clay-border: rgba(217, 119, 87, 0.45);
-
-  /* Bleu clair — tendances / CTA */
-  --tr-accent: #86b6ef;
-  --tr-accent-soft: rgba(134, 182, 239, 0.14);
-  --tr-accent-border: rgba(134, 182, 239, 0.45);
-  --tr-accent-deep: #3987e5;
-  --tr-accent-text: #cde2fb;
-
-  /* Compat anciens noms (lime → accent) */
-  --tr-lime: var(--tr-accent);
-  --tr-lime-soft: var(--tr-accent-deep);
-  --tr-lime-dim: var(--tr-accent-soft);
-  --tr-lime-border: var(--tr-accent-border);
-
-  --tr-tendance: #86b6ef;
-  --tr-tendance-soft: rgba(134, 182, 239, 0.12);
-  --tr-tendance-border: rgba(134, 182, 239, 0.4);
-  --tr-tendance-text: #cde2fb;
-  --tr-buzz: #d97757;
-  --tr-buzz-soft: rgba(217, 119, 87, 0.13);
-  --tr-buzz-border: rgba(217, 119, 87, 0.4);
-  --tr-buzz-text: #f7d8cb;
-
-  --tr-border: rgba(225, 224, 217, 0.1);
-  --tr-border-strong: rgba(225, 224, 217, 0.16);
-  --tr-focus: var(--tr-accent);
-  --tr-toast-bg: #f0efec;
-  --tr-toast-fg: #19213b;
+  /* UI chrome */
+  --tr-border: rgba(148, 163, 184, 0.18);
+  --tr-border-strong: rgba(148, 163, 184, 0.28);
+  --tr-focus: var(--tr-lime);
+  --tr-toast: #0c4a6e;
   --tr-danger: #f87171;
-  --tr-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
 
+  /* Typo */
   --tr-font-ui: 'Inter', system-ui, sans-serif;
-  --tr-font-display: 'Sora', 'Inter', system-ui, sans-serif;
+  --tr-font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
 
-  --tr-header-h: 64px;
-  --tr-assistant-w: 340px;
-  --tr-report-w: 392px;
+  /* Layout */
+  --tr-header-h: 72px;
+  --tr-assistant-w: 380px;
   --tr-radius-sm: 8px;
-  --tr-radius-md: 10px;
-  --tr-radius-lg: 14px;
-  --tr-radius-xl: 18px;
-}
+  --tr-radius-md: 12px;
+  --tr-radius-lg: 18px;
+  --tr-radius-xl: 20px;
 
-[data-theme='light'] {
-  color-scheme: light;
-
-  --tr-bg: #eef1f7;
-  --tr-bg-elevated: #ffffff;
-  --tr-bg-panel: #ffffff;
-  --tr-bg-soft: #f4f6fb;
-  --tr-bg-map: #e4e9f4;
-  --tr-bg-input: #f7f8fc;
-  --tr-bg-chrome: rgba(255, 255, 255, 0.92);
-
-  --tr-text: #1a2238;
-  --tr-text-strong: #12182a;
-  --tr-text-muted: #6b7280;
-  --tr-text-dim: #8b919c;
-  --tr-text-warm: #4b5563;
-  --tr-text-inverse: #ffffff;
-
-  --tr-clay: #c45f3f;
-  --tr-clay-light: #d97757;
-  --tr-clay-soft: rgba(196, 95, 63, 0.12);
-  --tr-clay-border: rgba(196, 95, 63, 0.35);
-
-  --tr-accent: #3b82c4;
-  --tr-accent-soft: rgba(59, 130, 196, 0.12);
-  --tr-accent-border: rgba(59, 130, 196, 0.35);
-  --tr-accent-deep: #2563a8;
-  --tr-accent-text: #1e4a7a;
-
-  --tr-lime: var(--tr-accent);
-  --tr-lime-soft: var(--tr-accent-deep);
-  --tr-lime-dim: var(--tr-accent-soft);
-  --tr-lime-border: var(--tr-accent-border);
-
-  --tr-tendance: #3b82c4;
-  --tr-tendance-soft: rgba(59, 130, 196, 0.12);
-  --tr-tendance-border: rgba(59, 130, 196, 0.35);
-  --tr-tendance-text: #1e4a7a;
-  --tr-buzz: #c45f3f;
-  --tr-buzz-soft: rgba(196, 95, 63, 0.12);
-  --tr-buzz-border: rgba(196, 95, 63, 0.35);
-  --tr-buzz-text: #8a3d28;
-
-  --tr-border: rgba(25, 33, 59, 0.1);
-  --tr-border-strong: rgba(25, 33, 59, 0.18);
-  --tr-focus: var(--tr-accent);
-  --tr-toast-bg: #1a2238;
-  --tr-toast-fg: #f0efec;
-  --tr-danger: #dc2626;
-  --tr-shadow: 0 20px 50px rgba(25, 33, 59, 0.18);
+  color-scheme: dark;
 }

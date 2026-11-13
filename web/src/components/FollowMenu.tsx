@@ -32,9 +32,7 @@ export function FollowMenu({ open, suivis, onClose, onPick }: FollowMenuProps) {
       />
       <aside className="follow-menu" aria-label="Menu Signaux suivis">
         <div className="follow-menu__head">
-          <p className="follow-menu__brand">
-            FOREC<span>ASTRO</span>
-          </p>
+          <p className="follow-menu__brand">TrendRadar</p>
           <button
             type="button"
             className="follow-menu__close"

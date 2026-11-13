@@ -1,4 +1,4 @@
-/** Orbe ASTRA 2D — argile → bleu Forecastro (pas WebGL). */
+/** Orbe slime 2D (assistant) — accent lime Figma, pas WebGL. */
 
 export function drawOrb(
   canvas: HTMLCanvasElement,
@@ -27,9 +27,9 @@ export function drawOrb(
   const sp = opts.busy ? 2.4 : 1;
 
   const glow = ctx.createRadialGradient(cx, cy, R * 0.5, cx, cy, R * 1.85);
-  glow.addColorStop(0, 'rgba(240,153,120,0.45)');
-  glow.addColorStop(0.45, 'rgba(134,182,239,0.18)');
-  glow.addColorStop(1, 'rgba(57,135,229,0)');
+  glow.addColorStop(0, 'rgba(200,245,66,0.4)');
+  glow.addColorStop(0.5, 'rgba(163,230,53,0.16)');
+  glow.addColorStop(1, 'rgba(163,230,53,0)');
   ctx.fillStyle = glow;
   ctx.beginPath();
   ctx.arc(cx, cy, R * 1.85, 0, Math.PI * 2);
@@ -61,10 +61,10 @@ export function drawOrb(
     cy,
     R * 1.15,
   );
-  fill.addColorStop(0, '#FBF3EC');
-  fill.addColorStop(0.28, '#F09978');
-  fill.addColorStop(0.62, '#3987E5');
-  fill.addColorStop(1, '#19213B');
+  fill.addColorStop(0, '#F7FEE7');
+  fill.addColorStop(0.22, '#D9F99D');
+  fill.addColorStop(0.55, '#A3E635');
+  fill.addColorStop(1, '#3F6212');
   ctx.fillStyle = fill;
   ctx.fill();
 
