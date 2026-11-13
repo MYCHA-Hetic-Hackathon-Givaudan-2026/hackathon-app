@@ -9,7 +9,7 @@ Toutes les commandes se lancent dans le dev container (service `dev` de `compose
 - `npm run dev` : API sur le port 3000, front sur le port 5173 (espaces de travail `api/` et `web/`).
 - `curl -s localhost:3000/api/health` doit répondre un JSON avec `"status":"ok"`.
 - Avant de dire « fini » : `npm run lint`, `npm run format:check`, `npm run build`. Ce sont les contrôles du job CI `qualite` (`.github/workflows/ci.yml`), dans l'image `node:24-trixie`.
-- Base : `psql postgres://app:app@db:5432/app`. Le schéma et les graines sont dans `db/init/`.
+- Base : `psql postgres://app:app@db:5432/app`. Le schéma et les seeds sont dans `db/init/`.
 
 ## Règles
 
@@ -25,7 +25,7 @@ Toutes les commandes se lancent dans le dev container (service `dev` de `compose
 ## Décisions
 
 - Lis `docs/adr/` avant d'ajouter une dépendance ou de changer de composant. Le modèle est `docs/adr/0000-modele.md`.
-- Ne contredis pas un ADR au statut « acceptée ». Les ADR 0002 à 0005 (GitFlow, merge, protections, dépôt public) sont acceptés. Les ADR 0001 (stack), 0006 (`openapi.yaml`) et 0007 (PostgreSQL 17) sont encore au statut « proposée » : à confirmer par le Tech Lead, pas à réécrire en silence.
+- Ne contredis pas un ADR au statut « acceptée ». Les ADR 0001 (stack), 0002 à 0005 (GitFlow, merge, protections, dépôt public), 0006 (`openapi.yaml`) et 0007 (PostgreSQL 17) sont acceptés.
 - S'il faut changer une décision acceptée ou proposée, propose un nouvel ADR, puis arrête-toi. On ne réécrit pas un ADR : on le remplace.
 - Raccourcis : Node 24 + TypeScript, pas un autre runtime (ADR 0001) ; PostgreSQL, pas SQLite (ADR 0007) ; contrat dans `openapi.yaml` (ADR 0006).
 

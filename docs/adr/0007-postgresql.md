@@ -1,18 +1,18 @@
 # 0007. Utiliser PostgreSQL 17 comme moteur de données
 
-- **Statut** : Proposée (à confirmer par le Tech Lead avant de passer à « acceptée »)
-- **Date** : 2026-11-10
-- **Décideurs** : Tech Lead (Yann N'DA) — proposition, pas encore tranchée
+- **Statut** : Acceptée
+- **Date** : 2026-11-10 (confirmée 2026-11-12)
+- **Décideurs** : Tech Lead (Yann N'DA)
 
 ## Contexte
 
-L'amorce actuelle stocke les questions dans PostgreSQL. `compose.yaml` lance `postgres:17`. Le schéma et les graines sont dans `db/init/`, joués au premier démarrage du volume `db/data/` (ignoré par git). L'API s'y connecte avec `pg`, via `DATABASE_URL`.
+L'amorce actuelle stocke les questions dans PostgreSQL. `compose.yaml` lance `postgres:17`. Le schéma et les seeds sont dans `db/init/`, joués au premier démarrage du volume `db/data/` (ignoré par git). L'API s'y connecte avec `pg`, via `DATABASE_URL`.
 
-Cette décision ne décrit pas le modèle métier Givaudan. Elle choisit le moteur. La stack globale est dans l'ADR 0001, également proposée.
+Cette décision ne décrit pas le modèle métier Givaudan. Elle choisit le moteur. La stack globale est dans l'ADR 0001.
 
 ## Options
 
-### Option 1 — PostgreSQL 17 dans Compose (proposée)
+### Option 1 — PostgreSQL 17 dans Compose (retenue)
 
 Même moteur en dev et pour la démo. Types déjà utilisés dans `db/init/001-schema.sql` (`TIMESTAMPTZ`, identité). Plusieurs processus (API, un futur script) peuvent s'y connecter.
 
@@ -28,9 +28,9 @@ Autre serveur, autre dialecte. Il faudrait réécrire `db/init/` et changer le c
 
 ## Décision
 
-Nous **proposons l'option 1**, parce qu'elle est déjà celle de `compose.yaml` et du SQL présent.
+Nous retenons l'**option 1**, déjà celle de `compose.yaml` et du SQL présent.
 
-**Cette décision n'est pas encore acceptée.** Le Tech Lead doit la confirmer, ou la remplacer par un nouvel ADR, avant de passer le statut à « acceptée ».
+Confirmée le **2026-11-12** : PostgreSQL 17 est le moteur en place (`postgres:17` dans Compose, `pg` + `DATABASE_URL`, seeds `db/init/` pour questions, signaux et suivis). Aucun basculement vers SQLite ou MariaDB.
 
 ## Conséquences
 

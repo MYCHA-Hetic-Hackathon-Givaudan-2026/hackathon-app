@@ -1,8 +1,8 @@
 # 0006. Tenir le contrat HTTP dans openapi.yaml, en contract-first
 
-- **Statut** : Proposée (à confirmer par le Tech Lead avant de passer à « acceptée »)
-- **Date** : 2026-11-10
-- **Décideurs** : Tech Lead (Yann N'DA) — proposition, pas encore tranchée
+- **Statut** : Acceptée
+- **Date** : 2026-11-10 (confirmée 2026-11-12)
+- **Décideurs** : Tech Lead (Yann N'DA)
 
 ## Contexte
 
@@ -14,7 +14,7 @@ L'API de l'équipe Data (FastAPI, `GET /health`, `POST /tendances`) reste un aut
 
 ## Options
 
-### Option 1 — Contract-first : `openapi.yaml` est la source de vérité (proposée)
+### Option 1 — Contract-first : `openapi.yaml` est la source de vérité (retenue)
 
 Toute route ajoutée ou modifiée dans `api/src/index.ts` est d'abord décrite dans `openapi.yaml`, dans la même pull request. Le code suit le fichier, pas l'inverse.
 
@@ -30,9 +30,9 @@ Suffisant pour essayer un appel, insuffisant pour le jalon : rien à relire dans
 
 ## Décision
 
-Nous **proposons l'option 1**, parce que le fichier est déjà diffable, cité par ce document, et limité à ce que l'API fait vraiment.
+Nous retenons l'**option 1**. Le fichier est diffable, cité par ce document et par `AGENTS.md`, et limité à ce que l'API expose.
 
-**Cette décision n'est pas encore acceptée.** Le Tech Lead doit la confirmer, ou la remplacer par un nouvel ADR, avant de passer le statut à « acceptée ».
+Confirmée le **2026-11-12** : toute route monolithe (`/api/health`, `/api/questions`, `/api/signaux`, `/api/suivis`, proxy Data, …) passe par [`openapi.yaml`](../../openapi.yaml) avant ou avec le code. Le principe contract-first tient. Si le détail des routes proxy Data change (ex. retrait de `/tendances` au profit de `scan`/`predict`), on met à jour `openapi.yaml` dans la même PR ; un **nouvel ADR** ne sera nécessaire que si l'on abandonne le contract-first.
 
 ## Conséquences
 

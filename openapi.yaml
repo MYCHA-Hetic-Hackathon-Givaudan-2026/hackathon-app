@@ -8,7 +8,7 @@ info:
     Contrat HTTP de l'API du monolithe hackathon-app.
     Santé, ressource d'exemple « questions », proxies Data
     (`/api/scan/latest`, `/api/predict`, `/api/scan/status`, …),
-    graine démo TrendRadar `/api/signaux` (profil, géo, confiance),
+    seed démo TrendRadar `/api/signaux` (profil, géo, confiance),
     suivis persistés `/api/suivis`, veilles append-only via `ask()`,
     et agent conversationnel `/api/agent/message`.
     Source de vérité, voir docs/adr/0006-contrat-api-openapi.md.
@@ -136,7 +136,7 @@ paths:
       description: >
         Proxy transparent vers GET /scan/latest (appel principal Data).
         Corps inchangé par rapport à docs/data/openapi.json (ScanLatest).
-        Ne remplace pas GET /api/signaux (graine monolithe pour le globe).
+        Ne remplace pas GET /api/signaux (seed monolithe pour le globe).
       responses:
         '200':
           description: Scan disponible
@@ -252,7 +252,7 @@ paths:
       operationId: listSignaux
       summary: Liste les signaux démo TrendRadar
       description: >
-        Graine démo monolithe (45 signaux). Schéma `Signal` (noms monolithe).
+        Seed démo monolithe (45 signaux). Schéma `Signal` (noms monolithe).
         Pour le payload Data brut, utiliser GET /api/scan/latest.
         Écarts de champs : docs/data/alignement-contrat-signaux.md.
         Pas de faux scores : on n'invente pas de mapping statut/croissance.
@@ -840,7 +840,7 @@ components:
         croissance_pct:
           type: [number, 'null']
           description: >
-            Legacy graine ; l'API Data n'expose plus croissance_pct
+            Legacy seed ; l'API Data n'expose plus croissance_pct
             (voir growth_since_t0 sur ScanRow). Rester null — ne pas inventer.
         statut_data:
           type: [string, 'null']
