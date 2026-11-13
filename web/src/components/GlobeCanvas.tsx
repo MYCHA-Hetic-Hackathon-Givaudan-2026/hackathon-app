@@ -271,7 +271,10 @@ export function GlobeCanvas({
       const nz = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom * f));
       if (nz > zoom) {
         const rc = canvas.getBoundingClientRect();
-        const g = projection.invert([e.clientX - rc.left, e.clientY - rc.top]);
+        const g = projection.invert?.([
+          e.clientX - rc.left,
+          e.clientY - rc.top,
+        ]);
         if (g && !Number.isNaN(g[0])) {
           const k = Math.min(0.35, (nz / zoom - 1) * 1.2);
           let d0 = -g[0] - rot[0];
