@@ -5,21 +5,30 @@ import {
   type Signal,
   type SignalDetail,
 } from '../lib/signaux';
+import type { Veille } from '../lib/suivis';
 
 export type SignalReportProps = {
   /** Signal déjà connu via la liste (affichage immédiat). */
   signal: Signal;
   followed: boolean;
+  hasVeille?: boolean;
   followBusy?: boolean;
+  veilleBusy?: boolean;
+  veilles?: Veille[];
   onToggleFollow: () => void;
+  onActivateVeille: () => void;
   onClose: () => void;
 };
 
 export function SignalReport({
   signal,
   followed,
+  hasVeille = false,
   followBusy = false,
+  veilleBusy = false,
+  veilles = [],
   onToggleFollow,
+  onActivateVeille,
   onClose,
 }: SignalReportProps) {
   const titleId = useId();
@@ -157,14 +166,29 @@ export function SignalReport({
           </svg>
           {followed ? 'Suivi' : 'Suivre'}
         </button>
-        <button
-          type="button"
-          className="signal-report__btn signal-report__btn--ghost"
-          disabled
-          title="Disponible dans une prochaine itération"
-        >
-          Activer la veille IA
-        </button>
+        {hasVeille ? (
+          <div className="signal-report__veille-on" role="status">
+            <span className="signal-report__veille-dot" aria-hidden="true" />
+            Veille activée
+            <button
+              type="button"
+              className="signal-report__veille-refresh"
+              disabled={veilleBusy}
+              onClick={onActivateVeille}
+            >
+              {veilleBusy ? '…' : 'Actualiser'}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="signal-report__btn signal-report__btn--ghost"
+            disabled={veilleBusy || followBusy}
+            onClick={onActivateVeille}
+          >
+            {veilleBusy ? 'Veille en cours…' : 'Activer la veille IA'}
+          </button>
+        )}
       </div>
 
       <section className="signal-report__block">
@@ -177,6 +201,21 @@ export function SignalReport({
       <section className="signal-report__block">
         <h3 className="signal-report__label">Veille</h3>
         <p className="signal-report__body">{view.veille_resume}</p>
+        {veilles.length > 0 ? (
+          <ul className="signal-report__veilles">
+            {veilles.map((v) => (
+              <li key={v.id} className="signal-report__veille-item">
+                <time dateTime={v.created_at}>
+                  {new Date(v.created_at).toLocaleString('fr-FR', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
+                </time>
+                <p>{v.texte}</p>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </section>
 
       <section className="signal-report__block">
