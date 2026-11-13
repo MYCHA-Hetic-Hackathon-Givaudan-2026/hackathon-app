@@ -6,13 +6,17 @@ import {
   type Signal,
   type SignalDetail,
 } from '../lib/signaux';
-import { BriefModal } from './BriefModal';
+import type { Veille } from '../lib/suivis';
 
 export type SignalReportProps = {
   signal: Signal;
   followed: boolean;
+  hasVeille?: boolean;
   followBusy?: boolean;
+  veilleBusy?: boolean;
+  veilles?: Veille[];
   onToggleFollow: () => void;
+  onActivateVeille: () => void;
   onClose: () => void;
   onToast?: (msg: string) => void;
   onAskVeille?: (nom: string) => void;
@@ -21,8 +25,12 @@ export type SignalReportProps = {
 export function SignalReport({
   signal,
   followed,
+  hasVeille = false,
   followBusy = false,
+  veilleBusy = false,
+  veilles = [],
   onToggleFollow,
+  onActivateVeille,
   onClose,
   onToast,
   onAskVeille,
@@ -65,68 +73,170 @@ export function SignalReport({
     view.domaine === 'Parfum' ? 'Fragrance & Beauty' : 'Taste & Wellbeing';
 
   return (
-    <>
-      <aside
-        className="signal-report"
-        aria-label="Détail du signal"
-        aria-labelledby={titleId}
-        role="dialog"
-        aria-modal="false"
-      >
-        <div className="signal-report__scroll">
-          <div className="signal-report__hero">
-            <div className="signal-report__hero-top">
-              <span className="tr-kicker">
-                {view.pays} · {view.cc}
-              </span>
-              <span className="signal-report__hero-actions">
-                <button
-                  type="button"
-                  className={
-                    followed
-                      ? 'signal-report__icon-btn signal-report__icon-btn--on'
-                      : 'signal-report__icon-btn'
-                  }
-                  aria-pressed={followed}
-                  aria-label={followed ? 'Suivi' : 'Suivre'}
-                  disabled={followBusy}
-                  onClick={onToggleFollow}
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill={followed ? 'currentColor' : 'none'}
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M6 4h12v17l-6-4-6 4z" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  className="signal-report__icon-btn"
-                  aria-label="Fermer le détail"
-                  onClick={onClose}
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M6 6l12 12M18 6L6 18" />
-                  </svg>
-                </button>
-              </span>
-            </div>
+    <aside
+      className="signal-report"
+      aria-label="Détail du signal"
+      aria-labelledby={titleId}
+      role="dialog"
+      aria-modal="false"
+    >
+      <div className="signal-report__head">
+        <span
+          className={
+            durable
+              ? 'signal-report__pill signal-report__pill--t'
+              : 'signal-report__pill signal-report__pill--b'
+          }
+        >
+          <span
+            className={durable ? 'map-zone__dot' : 'map-zone__diamond'}
+            aria-hidden="true"
+          />
+          {verdict}
+        </span>
+        <button
+          type="button"
+          className="signal-report__close"
+          aria-label="Fermer le détail"
+          onClick={onClose}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="signal-report__title-block">
+        <h2 id={titleId} className="signal-report__title">
+          {view.nom}
+        </h2>
+        <p className="signal-report__meta">
+          {view.famille} · {view.domaine} · {view.pays}
+        </p>
+      </div>
+
+      <div className="signal-report__conf">
+        <div className="signal-report__conf-row">
+          <span>Confiance du modèle</span>
+          <strong>{view.confiance_pct} %</strong>
+        </div>
+        <div
+          className="signal-report__conf-track"
+          role="meter"
+          aria-label="Confiance du modèle"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={view.confiance_pct}
+        >
+          <div
+            className={
+              durable
+                ? 'signal-report__conf-fill signal-report__conf-fill--t'
+                : 'signal-report__conf-fill signal-report__conf-fill--b'
+            }
+            style={{ width: `${view.confiance_pct}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="signal-report__actions">
+        <button
+          type="button"
+          className={
+            followed
+              ? 'signal-report__btn signal-report__btn--follow signal-report__btn--follow-on'
+              : 'signal-report__btn signal-report__btn--follow'
+          }
+          aria-pressed={followed}
+          disabled={followBusy}
+          onClick={onToggleFollow}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 21s-7-4.5-7-10a7 7 0 0114 0c0 5.5-7 10-7 10z" />
+          </svg>
+          {followed ? 'Suivi' : 'Suivre'}
+        </button>
+        {hasVeille ? (
+          <div className="signal-report__veille-on" role="status">
+            <span className="signal-report__veille-dot" aria-hidden="true" />
+            Veille activée
+            <button
+              type="button"
+              className="signal-report__veille-refresh"
+              disabled={veilleBusy}
+              onClick={onActivateVeille}
+            >
+              {veilleBusy ? '…' : 'Actualiser'}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="signal-report__btn signal-report__btn--ghost"
+            disabled={veilleBusy || followBusy}
+            onClick={onActivateVeille}
+          >
+            {veilleBusy ? 'Veille en cours…' : 'Activer la veille IA'}
+          </button>
+        )}
+      </div>
+
+      <section className="signal-report__block">
+        <h3 className="signal-report__label">Ce qui plaît</h3>
+        <p className="signal-report__body signal-report__body--strong">
+          {view.ce_qui_plait}
+        </p>
+      </section>
+
+      <section className="signal-report__block">
+        <h3 className="signal-report__label">Veille</h3>
+        <p className="signal-report__body">{view.veille_resume}</p>
+        {veilles.length > 0 ? (
+          <ul className="signal-report__veilles">
+            {veilles.map((v) => (
+              <li key={v.id} className="signal-report__veille-item">
+                <time dateTime={v.created_at}>
+                  {new Date(v.created_at).toLocaleString('fr-FR', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
+                </time>
+                <p>{v.texte}</p>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      <section className="signal-report__block">
+        <h3 className="signal-report__label">Matières premières liées</h3>
+        <div className="signal-report__chips">
+          {view.matieres.map((m) => (
+            <span key={m} className="signal-report__chip">
+              {m}
+            </span>
+          ))}
+        </div>
+      </section>
 
             <div className="signal-report__title-block">
               <h2 id={titleId} className="signal-report__title">

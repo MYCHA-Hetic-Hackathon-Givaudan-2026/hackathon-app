@@ -13,7 +13,7 @@ Organisation GitHub : `MYCHA-Hetic-Hackathon-Givaudan-2026`. Tech Lead : Yann N'
 | Équipe       | Accès au Project | Rôle                                                                |
 | ------------ | ---------------- | ------------------------------------------------------------------- |
 | `tech-leads` | Admin            | API, front, dev container, CI, revue des chemins sensibles          |
-| `data`       | Write            | API tendances (FastAPI, service à part), contrat dans `docs/data/`  |
+| `data`       | Write            | API radar (trend-radar FastAPI), contrat dans `docs/data/`          |
 | `product`    | Write            | Tickets, priorités, recette                                         |
 | `evaluation` | Read             | Lecture du tableau pour les jalons (`m0`, `m1`, `m2` sur `develop`) |
 
@@ -37,7 +37,7 @@ Vérifier la base et l'API :
 curl -s localhost:3000/api/health
 ```
 
-La réponse contient `"status":"ok"`. Sans `DATA_AI_URL` dans `api/.env`, les questions fonctionnent ; le formulaire Tendances répond que l'API Data n'est pas configurée. Les secrets restent dans `api/.env`, jamais dans git.
+La réponse contient `"status":"ok"`. Sans `DATA_AI_URL` dans `api/.env`, les questions et `/api/signaux` fonctionnent ; les proxies Data (`/api/scan/latest`, `/api/predict`, …) répondent 503. Les secrets restent dans `api/.env`, jamais dans git.
 
 Contrôles, les mêmes que la CI :
 
