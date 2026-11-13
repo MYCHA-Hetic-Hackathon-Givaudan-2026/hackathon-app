@@ -1,8 +1,8 @@
 # 0001. Adopter Node 24, TypeScript, Express, Vite et PostgreSQL 17 comme stack de départ
 
-- **Statut** : Proposée (à confirmer par le Tech Lead avant de passer à « acceptée »)
-- **Date** : 2026-11-10
-- **Décideurs** : Tech Lead (Yann N'DA) — proposition, pas encore tranchée
+- **Statut** : Acceptée
+- **Date** : 2026-11-10 (confirmée 2026-11-12)
+- **Décideurs** : Tech Lead (Yann N'DA)
 
 ## Contexte
 
@@ -14,13 +14,13 @@ Le sujet métier Givaudan n'est pas encore spécifié ici : cette décision port
 
 ## Options
 
-### Option 1 — Stack du cours, en monolithe npm workspaces (proposée)
+### Option 1 — Stack du cours, en monolithe npm workspaces (retenue)
 
 - Poste de travail : dev container `mcr.microsoft.com/devcontainers/typescript-node:24-trixie`, lancé par `compose.yaml` (service `dev`).
 - Monolithe : espaces de travail npm `api/` et `web/`, un seul `package-lock.json`, commandes `npm run dev`, `npm run lint`, `npm run format:check`, `npm run build`.
 - API de départ : Express + TypeScript, port 3000, routes sous `/api`.
 - Front de départ : Vite + TypeScript, port 5173, proxy `/api` → `http://localhost:3000`.
-- Base : PostgreSQL 17 (détail dans l'ADR 0007, également proposée).
+- Base : PostgreSQL 17 (détail dans l'ADR 0007).
 - IA : tout fournisseur compatible OpenAI, choisi par `api/.env` (Ollama sur la machine en dev, option commerciale ou API Data/IA plus tard). Un ADR dédié suivra quand le fournisseur de démo sera tranché.
 
 Le cours dit explicitement qu'Express et Vite servent à tester l'environnement, pas forcément au produit final : on peut remplacer le contenu de `api/` ou `web/` (Nest, Fastify, React, Vue…) sans changer le dev container, les ports ni les scripts.
@@ -37,9 +37,9 @@ Un seul outil pour le front et l'API. Casse le contrat du cours (workspaces `api
 
 ## Décision
 
-Nous **proposons l'option 1**, parce qu'elle est déjà celle de l'environnement, de la CI et des consignes d'atelier, tout en laissant les frameworks remplaçables.
+Nous retenons l'**option 1**. Elle est celle de l'environnement, de la CI et des consignes d'atelier, tout en laissant les frameworks remplaçables.
 
-**Cette décision n'est pas encore acceptée.** Le Tech Lead doit la confirmer (ou la remplacer par un nouvel ADR) avant de passer le statut à « acceptée ».
+Confirmée le **2026-11-12** : la stack en place est Node 24 + TypeScript, Express (`api/`), Vite + React (`web/`), PostgreSQL 17, monolithe npm workspaces, IA via `ask()` / `api/.env`. React a été adopté **dans** Vite, sans changer ports ni scripts — conforme à cette ADR.
 
 ## Conséquences
 

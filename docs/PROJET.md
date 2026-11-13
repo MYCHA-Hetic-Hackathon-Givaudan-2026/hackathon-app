@@ -26,7 +26,7 @@ Les trois premiers usages sont **trois lectures du même signal**, pas trois app
 
 ### Produit livré (démo)
 
-**FORECASTRO** (marque UI / maquette) · **TrendRadar** (nom produit / API / graine SQL) est un explorateur de **signaux** sur un globe :
+**FORECASTRO** (marque UI / maquette) · **TrendRadar** (nom produit / API / seed SQL) est un explorateur de **signaux** sur un globe :
 
 - Landing → choisir « Nouvelle recherche » (ASTRA) ou « Explorer le globe » ;
 - Globe 3D filtrable (profil durable/buzz, confiance, fenêtre temporelle) ;
@@ -39,17 +39,17 @@ Les trois premiers usages sont **trois lectures du même signal**, pas trois app
 
 ## 2. Choix techniques
 
-### Stack (ADR 0001 — proposée)
+### Stack (ADR 0001 — acceptée)
 
 | Couche           | Choix                                       | Notes                              |
 | ---------------- | ------------------------------------------- | ---------------------------------- |
 | Runtime          | Node 24 + TypeScript                        | Image CI `node:24-trixie`          |
 | API              | Express (`api/src/index.ts`)                | Amorce cours, pas Nest/Fastify     |
 | Front            | Vite + React (`web/`)                       | Proxy `/api` → `:3000`             |
-| Base             | PostgreSQL 17 (`db/init/`)                  | ADR 0007 proposée                  |
+| Base             | PostgreSQL 17 (`db/init/`)                  | ADR 0007 acceptée                  |
 | IA chat          | Compatible OpenAI via `ask()` + `AI_*` env  | Ollama en compose ; ngrok possible |
 | Data / ML        | Service externe **trend-radar**             | Contrat `docs/data/openapi.json`   |
-| Contrat HTTP     | `openapi.yaml` OpenAPI 3.1 (contract-first) | ADR 0006 proposée                  |
+| Contrat HTTP     | `openapi.yaml` OpenAPI 3.1 (contract-first) | ADR 0006 acceptée                  |
 | Poste de travail | Dev container + `compose.yaml`              | `dev` + `db` + `ollama`            |
 
 ### Front produit
@@ -60,7 +60,7 @@ Les trois premiers usages sont **trois lectures du même signal**, pas trois app
 | Globe         | Canvas + d3-geo (projection orthographique, hit-test markers)        |
 | Charte        | Tokens CSS Forecastro (Sora / Inter, navy–argile–bleu, `data-theme`) |
 | Thème         | Clair / sombre persisté (`localStorage`) — PR #31                    |
-| Données globe | Graine SQL `GET /api/signaux` (IDs stables pour suivis)              |
+| Données globe | Seed SQL `GET /api/signaux` (IDs stables pour suivis)                |
 
 ### Gouvernance (ADR 0002–0005 — acceptées)
 
@@ -74,32 +74,32 @@ Plans de référence (hors git) : `.scratch/plan-mvp.md`, `.scratch/plan-techniq
 
 ### Conforme / tenu
 
-| Intention initiale               | Réalité actuelle                                   |
-| -------------------------------- | -------------------------------------------------- |
-| Monolithe Express + Vite + PG 17 | Oui                                                |
-| Contract-first `openapi.yaml`    | Oui (toute route monolithe y passe)                |
-| Proxy Data via `DATA_AI_URL`     | Oui ; **réaligné** sur trend-radar (PR #29)        |
-| Distinction buzz / durable       | Oui (`profil` sur la graine ; Data expose `label`) |
-| Suivis persistés                 | Oui (`/api/suivis`, table `suivis`)                |
-| Veille datée (append-only)       | En cours PR #26                                    |
-| Secrets hors dépôt               | Oui (`api/.env`)                                   |
-| Dev container unique             | Oui                                                |
+| Intention initiale               | Réalité actuelle                                 |
+| -------------------------------- | ------------------------------------------------ |
+| Monolithe Express + Vite + PG 17 | Oui                                              |
+| Contract-first `openapi.yaml`    | Oui (toute route monolithe y passe)              |
+| Proxy Data via `DATA_AI_URL`     | Oui ; **réaligné** sur trend-radar (PR #29)      |
+| Distinction buzz / durable       | Oui (`profil` sur le seed ; Data expose `label`) |
+| Suivis persistés                 | Oui (`/api/suivis`, table `suivis`)              |
+| Veille datée (append-only)       | En cours PR #26                                  |
+| Secrets hors dépôt               | Oui (`api/.env`)                                 |
+| Dev container unique             | Oui                                              |
 
 ### Écarts assumés (évolution produit)
 
-| Plan MVP d’origine                        | Écart                                                                      | Pourquoi                                                                                             |
-| ----------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Accueil = liste région + sujets Data      | **Globe interactif** + landing marketing                                   | Maquette TrendRadar / Forecastro ; le plan listait la carte « hors MVP », puis le mockup l’a imposée |
-| `POST /api/tendances` (dummy 0.1)         | Remplacé par `/api/scan/latest`, `/api/predict`, … (PR #29)                | L’API Data réelle n’a jamais exposé `/tendances`                                                     |
-| Suivis = `{ sujet, region }`              | Suivis = **signal_id** (FK graine)                                         | IDs stables + panneau rapport                                                                        |
-| Profil attendu du contrat Data avant UI   | Profil d’abord sur **graine démo**, Data en parallèle                      | Démo globe sans bloquer sur Data                                                                     |
-| Pas inventer de champs absents de Data    | Graine complète (geo, matières, veille…) ; Data a des champs `demo_fictif` | Documenté dans l’alignement Data ; pas de faux mapping `growth_since_t0` → `croissance_pct`          |
-| Formulaire questions = hors écran manager | Conservé derrière **ASTRA**                                                | Démo IA + atelier cours                                                                              |
-| Marque TrendRadar                         | UI **FORECASTRO** (PR #31)                                                 | Maquette `.scratch/forecastro-front`                                                                 |
+| Plan MVP d’origine                        | Écart                                                                   | Pourquoi                                                                                             |
+| ----------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Accueil = liste région + sujets Data      | **Globe interactif** + landing marketing                                | Maquette TrendRadar / Forecastro ; le plan listait la carte « hors MVP », puis le mockup l’a imposée |
+| `POST /api/tendances` (dummy 0.1)         | Remplacé par `/api/scan/latest`, `/api/predict`, … (PR #29)             | L’API Data réelle n’a jamais exposé `/tendances`                                                     |
+| Suivis = `{ sujet, region }`              | Suivis = **signal_id** (FK seed)                                        | IDs stables + panneau rapport                                                                        |
+| Profil attendu du contrat Data avant UI   | Profil d’abord sur **seed démo**, Data en parallèle                     | Démo globe sans bloquer sur Data                                                                     |
+| Pas inventer de champs absents de Data    | Seed complet (geo, matières, veille…) ; Data a des champs `demo_fictif` | Documenté dans l’alignement Data ; pas de faux mapping `growth_since_t0` → `croissance_pct`          |
+| Formulaire questions = hors écran manager | Conservé derrière **ASTRA**                                             | Démo IA + atelier cours                                                                              |
+| Marque TrendRadar                         | UI **FORECASTRO** (PR #31)                                              | Maquette `.scratch/forecastro-front`                                                                 |
 
-### ADR encore « proposées »
+### ADR techniques (acceptées le 2026-11-13)
 
-0001 (stack), 0006 (OpenAPI), 0007 (PostgreSQL) : à confirmer par le Tech Lead. Ne pas les réécrire : nouvel ADR si changement.
+0001 (stack), 0006 (OpenAPI contract-first), 0007 (PostgreSQL 17) : confirmées au regard de la stack en place. On ne les réécrit pas : nouvel ADR si changement de décision.
 
 ---
 
@@ -110,7 +110,7 @@ Explicitement **hors** du monolithe tel qu’il est :
 - Catalogue produits, CRM commercial, outil de formulation créateurs ;
 - Auth / multi-utilisateurs / droits par manager ;
 - Ingestion temps réel des sources (scraping, social listening) — côté équipe Data ;
-- Adaptateur automatique `ScanRow` → `Signal` branché sur le globe (décision spike : proxies bruts + graine séparée) ;
+- Adaptateur automatique `ScanRow` → `Signal` branché sur le globe (décision spike : proxies bruts + seed séparé) ;
 - Brief métier branché sur un LLM / Data (aujourd’hui générateur client démo) ;
 - Carte serveur / tuiles carto (tout est canvas local) ;
 - App mobile native ;
@@ -156,7 +156,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  Seed[db/init graine signaux] -->|GET /api/signaux| Globe[Globe + filtres]
+  Seed[db/init seed signaux] -->|GET /api/signaux| Globe[Globe + filtres]
   Globe -->|clic marker| Report[Panneau rapport]
   Report -->|POST /api/suivis| Suivis[(suivis)]
   DataScan[GET /api/scan/latest] -.->|brut, non mappé UI| Ops[Ops / future fusion]
@@ -200,14 +200,14 @@ Termes **spécifiques** ou **récurrents** dans ce dépôt :
 | **ASTRA**          | Assistant conversationnel de l’Explorer (questions → IA)                         |
 | **Brief**          | Synthèse métier exportable (démo client) à partir d’un signal                    |
 | **FORECASTRO**     | Marque / charte UI de la maquette intégrée                                       |
-| **TrendRadar**     | Nom produit / API / graine historiques                                           |
+| **TrendRadar**     | Nom produit / API / seed historiques                                             |
 | **Contract-first** | Décrire la route dans `openapi.yaml` avant (ou avec) le code                     |
 | **Monolithe**      | Un dépôt, workspaces `api/` + `web/`, un lockfile                                |
 | **ADR**            | Architecture Decision Record dans `docs/adr/`                                    |
 | **demo_fictif**    | Champs Data présents seulement en mode démo (geo, matières…)                     |
 | **ngrok**          | Tunnel pour joindre une IA / Data hors réseau du container                       |
 | **Hit-test**       | Détection du marker sous le curseur sur le canvas globe                          |
-| **`data-theme`**   | Attribut HTML pilotant clair/sombre via tokens CSS                               |
+| `**data-theme**`   | Attribut HTML pilotant clair/sombre via tokens CSS                               |
 
 ---
 
@@ -231,15 +231,14 @@ Commits UI (#31), pour revue fichier par fichier :
 ## 8. Recommandations
 
 1. **Fusionner #29 avant de brancher le globe sur Data** — sinon le front reste sur un contrat `/tendances` obsolète côté `develop`.
-2. **Ticket dédié « adaptateur ScanRow → Signal »** avec règles explicites (pas de faux `croissance_pct`) + filtre `exclu_raison` ; jusqu’alors garder la graine pour les IDs de suivis.
-3. **Confirmer les ADR 0001 / 0006 / 0007** (statut « acceptée ») pour figer le discours face à l’évaluation.
-4. **Brancher le brief** sur `ask()` ou sur un endpoint Data une fois le prompt métier validé ; retirer le générateur purement client.
-5. **Auth minimale** (même un pseudo + header) avant toute démo multi-managers : les suivis sont aujourd’hui globaux.
-6. **Recette manuelle checklist** dans chaque PR UI (thème clair/sombre, zoom, hover, brief, logo → `/`) — la CI ne couvre pas le canvas.
-7. **Ne pas committer `.scratch/`** ; y garder maquettes et notes de spike ; promouvoir dans `docs/` seulement ce qui doit vivre avec le produit (comme ce fichier).
-8. **Mettre à jour l’ADR 0006** (nouvel ADR de remplacement) quand `/tendances` disparaît définitivement de `develop`, pour que l’exemple cité reste vrai.
-9. **Performance globe** : profiler le redraw au zoom max ×8 sur machines faibles ; éventuel throttle du hover.
-10. **Lien produit ↔ Data** : une page unique « contrat vivant » (déjà amorcée par `docs/data/`) relue à chaque démo jury.
+2. **Ticket dédié « adaptateur ScanRow → Signal »** avec règles explicites (pas de faux `croissance_pct`) + filtre `exclu_raison` ; jusqu’alors garder le seed pour les IDs de suivis.
+3. **Brancher le brief** sur `ask()` ou sur un endpoint Data une fois le prompt métier validé ; retirer le générateur purement client.
+4. **Auth minimale** (même un pseudo + header) avant toute démo multi-managers : les suivis sont aujourd’hui globaux.
+5. **Recette manuelle checklist** dans chaque PR UI (thème clair/sombre, zoom, hover, brief, logo → `/`) — la CI ne couvre pas le canvas.
+6. **Ne pas committer `.scratch/`** ; y garder maquettes et notes de spike ; promouvoir dans `docs/` seulement ce qui doit vivre avec le produit (comme ce fichier).
+7. **Mettre à jour `openapi.yaml`** (et nouvel ADR seulement si on quitte le contract-first) quand `/tendances` disparaît définitivement de `develop`.
+8. **Performance globe** : profiler le redraw au zoom max ×8 sur machines faibles ; éventuel throttle du hover.
+9. **Lien produit ↔ Data** : une page unique « contrat vivant » (déjà amorcée par `docs/data/`) relue à chaque démo jury.
 
 ---
 

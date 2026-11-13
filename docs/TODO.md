@@ -22,7 +22,7 @@ Légende : `[ ]` à faire · `[~]` en cours / PR ouverte · `[x]` fait sur `deve
 - [~] Aligner proxies monolithe sur trend-radar (`/scan/latest`, `/predict`, …) — **PR #29**
 - [ ] Adaptateur **`ScanRow` → `Signal`** (mapping documenté, pas de faux scores)
 - [ ] Filtrer `exclu_raison !== null` avant affichage globe
-- [ ] Endpoint monolithe « signaux enrichis » (graine ∪ scan) avec politique de merge claire
+- [ ] Endpoint monolithe « signaux enrichis » (seed ∪ scan) avec politique de merge claire
 - [ ] Proxifier `POST /scan/run` / `POST /predict_features` si l’UI ops le demande
 - [ ] Health agrégé : monolithe + Data + IA dans `GET /api/health`
 
@@ -35,8 +35,8 @@ Légende : `[ ]` à faire · `[~]` en cours / PR ouverte · `[x]` fait sur `deve
 
 ## Technique / qualité
 
-- [ ] Confirmer ADR **0001 / 0006 / 0007** (statut acceptée) ou les remplacer
-- [ ] Nouvel ADR si retrait définitif de `POST /api/tendances` sur `develop`
+- [x] Confirmer ADR **0001 / 0006 / 0007** (statut acceptée) — 2026-11-13
+- [ ] Mettre à jour `openapi.yaml` si retrait définitif de `POST /api/tendances` sur `develop` (nouvel ADR seulement si abandon du contract-first)
 - [ ] Tests API (health, signaux, suivis) + smoke Playwright landing → explorer → rapport
 - [ ] Storybook ou page `/lab` pour tokens / composants shell
 - [ ] Budget perf canvas (FPS zoom ×8, machines faibles)

@@ -1,4 +1,4 @@
--- Schéma et graine démo TrendRadar (45 signaux du mockup Globe)
+-- Schéma et seed démo TrendRadar (45 signaux du mockup Globe)
 -- Joué au premier démarrage de PostgreSQL uniquement.
 
 CREATE TABLE signaux (
