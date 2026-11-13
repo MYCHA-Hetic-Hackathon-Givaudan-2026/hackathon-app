@@ -114,29 +114,106 @@ async function ask(question: string, system?: string): Promise<string> {
   return content.trim();
 }
 
-type Tendance = {
-  terme: string;
-  croissance_pct: number;
-  statut: string;
-};
+// Contrat Data : docs/data/openapi.json (malickl/trend-radar). Pas de /tendances.
+function dataBaseUrl(): string {
+  if (!DATA_AI_URL) {
+    throw new Error('API Data non configurée (DATA_AI_URL)');
+  }
+  return DATA_AI_URL.replace(/\/$/, '');
+}
 
-app.post('/api/tendances', async (req, res) => {
+function dataHeaders(json = false): HeadersInit {
+  const headers: Record<string, string> = {
+    'ngrok-skip-browser-warning': 'true',
+  };
+  if (json) headers['Content-Type'] = 'application/json';
+  return headers;
+}
+
+type DataProxyResult =
+  | { ok: true; status: number; body: unknown }
+  | { ok: false; status: number; error: string };
+
+async function proxyData(
+  path: string,
+  init: RequestInit = {},
+): Promise<DataProxyResult> {
+  const response = await fetch(`${dataBaseUrl()}${path}`, {
+    ...init,
+    signal: init.signal ?? AbortSignal.timeout(30_000),
+  });
+  if (response.status === 204) {
+    return { ok: true, status: 204, body: null };
+  }
+  const text = await response.text();
+  let body: unknown = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text;
+    }
+  }
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      error: await (async () => {
+        if (typeof body === 'object' && body) {
+          if (
+            'detail' in body &&
+            typeof (body as { detail: unknown }).detail === 'string'
+          ) {
+            return (body as { detail: string }).detail;
+          }
+        }
+        return typeof body === 'string' && body.trim()
+          ? body.trim()
+          : `Data : ${response.status}`;
+      })(),
+    };
+  }
+  return { ok: true, status: response.status, body };
+}
+
+function sendDataProxy(
+  res: express.Response,
+  result: DataProxyResult,
+  unexpected?: (body: unknown) => string | null,
+): void {
+  if (!result.ok) {
+    const status =
+      result.status === 404 || result.status === 409 || result.status === 422
+        ? result.status
+        : 502;
+    res.status(status).json({ error: result.error });
+    return;
+  }
+  const bad = unexpected?.(result.body) ?? null;
+  if (bad) {
+    res.status(502).json({ error: bad });
+    return;
+  }
+  res.status(result.status).json(result.body);
+}
+
+app.get('/api/data/health', async (_req, res) => {
   if (!DATA_AI_URL) {
     res.status(503).json({ error: 'API Data non configurée (DATA_AI_URL)' });
     return;
   }
-  const termes = Array.isArray(req.body?.termes)
-    ? req.body.termes
-        .map((terme: unknown) => String(terme).trim())
-        .filter(Boolean)
-    : [];
-  if (termes.length === 0) {
-    res.status(400).json({ error: 'termes manquants' });
-    return;
-  }
-
   try {
-    res.json(await fetchTendances(termes));
+    sendDataProxy(
+      res,
+      await proxyData('/health', { headers: dataHeaders() }),
+      (body) =>
+        body &&
+        typeof body === 'object' &&
+        'status' in body &&
+        (body as { status: unknown }).status === 'ok'
+          ? null
+          : 'Data : réponse health inattendue',
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'API Data indisponible';
@@ -144,26 +221,81 @@ app.post('/api/tendances', async (req, res) => {
   }
 });
 
-// Contrat Data : POST /tendances, voir docs/data/openapi.json (leur Swagger /docs)
-async function fetchTendances(termes: string[]): Promise<Tendance[]> {
+app.get('/api/scan/latest', async (_req, res) => {
   if (!DATA_AI_URL) {
-    throw new Error('API Data non configurée (DATA_AI_URL)');
+    res.status(503).json({ error: 'API Data non configurée (DATA_AI_URL)' });
+    return;
   }
-  const response = await fetch(`${DATA_AI_URL.replace(/\/$/, '')}/tendances`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ termes }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!response.ok) {
-    throw new Error(`Data : ${response.status} ${await response.text()}`);
+  try {
+    sendDataProxy(
+      res,
+      await proxyData('/scan/latest', { headers: dataHeaders() }),
+      (body) =>
+        body &&
+        typeof body === 'object' &&
+        'rows' in body &&
+        Array.isArray((body as { rows: unknown }).rows)
+          ? null
+          : 'Data : réponse scan/latest inattendue',
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'API Data indisponible';
+    res.status(502).json({ error: message });
   }
-  const data: unknown = await response.json();
-  if (!Array.isArray(data)) {
-    throw new Error('Data : réponse inattendue');
+});
+
+app.get('/api/scan/status', async (_req, res) => {
+  if (!DATA_AI_URL) {
+    res.status(503).json({ error: 'API Data non configurée (DATA_AI_URL)' });
+    return;
   }
-  return data as Tendance[];
-}
+  try {
+    sendDataProxy(
+      res,
+      await proxyData('/scan/status', { headers: dataHeaders() }),
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'API Data indisponible';
+    res.status(502).json({ error: message });
+  }
+});
+
+app.post('/api/predict', async (req, res) => {
+  if (!DATA_AI_URL) {
+    res.status(503).json({ error: 'API Data non configurée (DATA_AI_URL)' });
+    return;
+  }
+  const title = String(req.body?.title ?? '').trim();
+  if (!title) {
+    res.status(400).json({ error: 'title manquant' });
+    return;
+  }
+  const params = new URLSearchParams();
+  for (const key of ['last', 'since'] as const) {
+    const value = req.query[key];
+    if (typeof value === 'string' && value.trim()) {
+      params.set(key, value.trim());
+    }
+  }
+  const qs = params.toString();
+  const path = qs ? `/predict?${qs}` : '/predict';
+  try {
+    sendDataProxy(
+      res,
+      await proxyData(path, {
+        method: 'POST',
+        headers: dataHeaders(true),
+        body: JSON.stringify(req.body),
+      }),
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'API Data indisponible';
+    res.status(502).json({ error: message });
+  }
+});
 
 type SignalRow = {
   id: number;
