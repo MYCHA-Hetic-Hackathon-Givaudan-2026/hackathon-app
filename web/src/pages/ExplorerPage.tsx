@@ -46,7 +46,13 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
   const [veillesBySuivi, setVeillesBySuivi] = useState<
     Record<number, Veille[]>
   >({});
+  const [chatOpen, setChatOpen] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
+  const orbRef = useRef<HTMLCanvasElement>(null);
+
+  function showToast(msg: string) {
+    setToast(msg);
+  }
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQuery(query.trim()), 200);
@@ -300,28 +306,20 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
           setSelectedId(id);
         }}
       />
-      <div className="explorer__body">
+      <div
+        className={
+          chatOpen ? 'explorer__body' : 'explorer__body explorer__body--wide'
+        }
+      >
         <AssistantPanel
           focusOnMount={focusAssistant}
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
           selectedSignalId={selectedId}
           selectedSignalName={selected?.nom ?? null}
           onAction={handleAgentAction}
         />
         <section className="map-zone" aria-label="Carte des signaux">
-          <FiltersBar
-            query={query}
-            onQueryChange={setQuery}
-            showDurable={showDurable}
-            showBuzz={showBuzz}
-            onToggleDurable={() => setShowDurable((v) => !v)}
-            onToggleBuzz={() => setShowBuzz((v) => !v)}
-            countDurable={countDurable}
-            countBuzz={countBuzz}
-            minConfiance={minConfiance}
-            onMinConfianceChange={setMinConfiance}
-            fenetre={fenetre}
-            onFenetreChange={setFenetre}
-          />
           <div
             className={
               reportOpen
@@ -434,12 +432,6 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
                 }}
               />
             ) : null}
-
-            {toast ? (
-              <div className="map-zone__toast" role="status">
-                {toast}
-              </div>
-            ) : null}
           </div>
 
           <div className="map-zone__footer">
@@ -450,7 +442,7 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
               Glisser pour tourner · cliquer un groupe pour zoomer · molette
             </span>
           </div>
-        </main>
+        </section>
       </div>
       {toast ? (
         <div className="explorer-toast" role="status">

@@ -13,6 +13,8 @@ type ChatMsg = { role: 'user' | 'assistant'; text: string };
 
 type AssistantPanelProps = {
   focusOnMount?: boolean;
+  open?: boolean;
+  onClose?: () => void;
   selectedSignalId?: number | null;
   selectedSignalName?: string | null;
   onAction?: (action: AgentAction) => void;
@@ -20,6 +22,8 @@ type AssistantPanelProps = {
 
 export function AssistantPanel({
   focusOnMount = false,
+  open = true,
+  onClose,
   selectedSignalId = null,
   selectedSignalName = null,
   onAction,
@@ -54,13 +58,13 @@ export function AssistantPanel({
     inputRef.current?.focus();
   }, [focusOnMount, open]);
 
-  if (!open) return null;
-
   useEffect(() => {
     const el = threadRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [msgs, busy]);
+
+  if (!open) return null;
 
   async function send(textArg?: string) {
     const text = (textArg ?? draft).trim();
