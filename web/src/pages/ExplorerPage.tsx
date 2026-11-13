@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AssistantPanel } from '../components/AssistantPanel';
 import { FiltersBar } from '../components/FiltersBar';
 import { FollowMenu } from '../components/FollowMenu';
 import { GlobeCanvas } from '../components/GlobeCanvas';
 import { Header } from '../components/Header';
 import { SignalReport } from '../components/SignalReport';
+import { useTheme } from '../hooks/useTheme';
+import { drawOrb } from '../lib/globe/drawOrb';
 import { fetchSignaux, type Fenetre, type Signal } from '../lib/signaux';
 import {
   createSuivi,
@@ -17,15 +19,15 @@ import {
   type Veille,
 } from '../lib/suivis';
 
-/** Décale le globe quand le panneau rapport est ouvert (mockup TrendRadar). */
-const GLOBE_SHIFT_X = -150;
+/** Décale le globe quand le panneau rapport est ouvert. */
+const GLOBE_SHIFT_X = -120;
 
 type ExplorerPageProps = {
-  /** Depuis la landing « Nouvelle recherche » : focus l’input assistant. */
   focusAssistant?: boolean;
 };
 
 export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
+  const { theme, toggleTheme } = useTheme();
   const [signaux, setSignaux] = useState<Signal[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -34,6 +36,7 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
   const [showBuzz, setShowBuzz] = useState(true);
   const [minConfiance, setMinConfiance] = useState(50);
   const [fenetre, setFenetre] = useState<Fenetre | null>(null);
+  const [domaine, setDomaine] = useState<'all' | 'gout' | 'parfum'>('all');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [suivis, setSuivis] = useState<Suivi[]>([]);
   const [followMenuOpen, setFollowMenuOpen] = useState(false);
@@ -97,21 +100,39 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
     return () => ac.abort();
   }, []);
 
-  const visible = signaux.filter((s) =>
+  useEffect(() => {
+    if (chatOpen) return;
+    const canvas = orbRef.current;
+    if (!canvas) return;
+    let raf = 0;
+    const tick = (now: number) => {
+      drawOrb(canvas, now / 1000, { size: 92 });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [chatOpen]);
+
+  const byDomaine = signaux.filter((s) => {
+    if (domaine === 'gout') return s.domaine !== 'Parfum';
+    if (domaine === 'parfum') return s.domaine === 'Parfum';
+    return true;
+  });
+
+  const visible = byDomaine.filter((s) =>
     s.profil === 'durable' ? showDurable : showBuzz,
   );
-  const countDurable = visible.filter((s) => s.profil === 'durable').length;
-  const countBuzz = visible.filter((s) => s.profil === 'buzz').length;
+  const countDurable = byDomaine.filter((s) => s.profil === 'durable').length;
+  const countBuzz = byDomaine.filter((s) => s.profil === 'buzz').length;
+  const countGout = signaux.filter((s) => s.domaine !== 'Parfum').length;
+  const countParfum = signaux.filter((s) => s.domaine === 'Parfum').length;
 
   useEffect(() => {
     if (selectedId == null) return;
-    const inList = signaux.some((s) => {
-      if (s.id !== selectedId) return false;
-      return s.profil === 'durable' ? showDurable : showBuzz;
-    });
+    const inList = visible.some((s) => s.id === selectedId);
     const followed = suivis.some((s) => s.signal_id === selectedId);
     if (!inList && !followed) setSelectedId(null);
-  }, [signaux, selectedId, showDurable, showBuzz, suivis]);
+  }, [visible, selectedId, suivis]);
 
   const markers = visible.map((s) => ({
     id: s.id,
@@ -261,6 +282,10 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
       <Header
         followCount={suivis.length}
         onOpenFollows={() => setFollowMenuOpen(true)}
+        query={query}
+        onQueryChange={setQuery}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
       <FollowMenu
         open={followMenuOpen}
@@ -310,6 +335,29 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
               query={query}
               onSelect={setSelectedId}
               shiftX={reportOpen ? GLOBE_SHIFT_X : 0}
+              signalById={(id) => {
+                const fromList = signaux.find((s) => s.id === id);
+                if (fromList) {
+                  return {
+                    nom: fromList.nom,
+                    profil: fromList.profil,
+                    confiance_pct: fromList.confiance_pct,
+                    famille: fromList.famille,
+                    pays: fromList.pays,
+                  };
+                }
+                const fromSuivi = suivis.find(
+                  (s) => s.signal_id === id,
+                )?.signal;
+                if (!fromSuivi) return null;
+                return {
+                  nom: fromSuivi.nom,
+                  profil: fromSuivi.profil,
+                  confiance_pct: fromSuivi.confiance_pct,
+                  famille: fromSuivi.famille,
+                  pays: fromSuivi.pays,
+                };
+              }}
             />
             {loadError ? (
               <p className="map-zone__error" role="alert">
@@ -324,6 +372,45 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
                 {followError}
               </p>
             ) : null}
+
+            <FiltersBar
+              showDurable={showDurable}
+              showBuzz={showBuzz}
+              onToggleDurable={() =>
+                setShowDurable((v) => (v && !showBuzz ? v : !v))
+              }
+              onToggleBuzz={() =>
+                setShowBuzz((v) => (v && !showDurable ? v : !v))
+              }
+              countDurable={countDurable}
+              countBuzz={countBuzz}
+              minConfiance={minConfiance}
+              onMinConfianceChange={setMinConfiance}
+              fenetre={fenetre}
+              onFenetreChange={setFenetre}
+              domaine={domaine}
+              onDomaineChange={setDomaine}
+              countGout={countGout}
+              countParfum={countParfum}
+            />
+
+            {!chatOpen ? (
+              <button
+                type="button"
+                className="map-zone__astra"
+                onClick={() => setChatOpen(true)}
+                aria-label="Afficher ASTRA"
+              >
+                <canvas
+                  ref={orbRef}
+                  width={92}
+                  height={92}
+                  aria-hidden="true"
+                />
+                <span>ASTRA</span>
+              </button>
+            ) : null}
+
             {selected ? (
               <SignalReport
                 key={selected.id}
@@ -338,24 +425,32 @@ export function ExplorerPage({ focusAssistant = false }: ExplorerPageProps) {
                 onToggleFollow={() => void toggleFollow(selected.id)}
                 onActivateVeille={() => void activateVeille(selected.id)}
                 onClose={() => setSelectedId(null)}
+                onToast={showToast}
+                onAskVeille={(nom) => {
+                  setChatOpen(true);
+                  showToast(
+                    `Demandez à ASTRA : « Fais une veille sur ${nom} »`,
+                  );
+                }}
               />
             ) : null}
-            <div className="map-zone__legend">
-              <div className="map-zone__legend-row">
-                <span className="map-zone__dot" aria-hidden="true" />
-                Tendance durable
+
+            {toast ? (
+              <div className="map-zone__toast" role="status">
+                {toast}
               </div>
-              <div className="map-zone__legend-row">
-                <span className="map-zone__diamond" aria-hidden="true" />
-                Buzz
-              </div>
-              <div className="map-zone__legend-row">Taille = confiance</div>
-            </div>
-            <p className="map-zone__hint">
-              Glisser pour tourner · molette pour zoomer · clic sur un signal
-            </p>
+            ) : null}
           </div>
-        </section>
+
+          <div className="map-zone__footer">
+            <span>
+              <strong>{visible.length}</strong> signaux affichés
+            </span>
+            <span>
+              Glisser pour tourner · cliquer un groupe pour zoomer · molette
+            </span>
+          </div>
+        </main>
       </div>
       {toast ? (
         <div className="explorer-toast" role="status">

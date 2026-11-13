@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
+import { useTheme } from '../hooks/useTheme';
 import { drawOrb } from '../lib/globe/drawOrb';
 import { navigate } from '../lib/navigate';
 
 export function LandingPage() {
   const orbRef = useRef<HTMLCanvasElement>(null);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const canvas = orbRef.current;
@@ -20,6 +22,17 @@ export function LandingPage() {
 
   return (
     <main className="landing">
+      <button
+        type="button"
+        className="landing__theme"
+        onClick={toggleTheme}
+        aria-label={
+          theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'
+        }
+      >
+        {theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+      </button>
+
       <div className="landing__atmosphere" aria-hidden="true">
         <div className="landing__glow landing__glow--a" />
         <div className="landing__glow landing__glow--b" />
@@ -33,11 +46,9 @@ export function LandingPage() {
 
       <div className="landing__content">
         <p className="landing__brand">
-          TrendRadar<span>/AI</span>
+          FOREC<span>ASTRO</span>
         </p>
-        <h1 className="landing__headline">
-          Ce qui commence à plaire, partout dans le monde.
-        </h1>
+        <h1 className="landing__headline">Buzz ou tendance ?</h1>
         <p className="landing__lead">
           Anticipez buzz et tendances durables pour les Consumer Market Insights
           — avant qu&apos;elles ne s&apos;ancrent dans le quotidien.

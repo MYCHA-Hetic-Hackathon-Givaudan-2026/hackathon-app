@@ -11,7 +11,7 @@ export function clampLatRotation(lat: number): number {
 }
 
 export function focusRotation(lon: number, lat: number): Rotation {
-  return [-lon, Math.max(-60, Math.min(60, -lat)), 0];
+  return [-lon, Math.max(-70, Math.min(70, -lat)), 0];
 }
 
 /** Interpolation angulaire courte sur λ (−180…180). */
