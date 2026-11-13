@@ -97,7 +97,7 @@ Plans de référence (hors git) : `.scratch/plan-mvp.md`, `.scratch/plan-techniq
 | Formulaire questions = hors écran manager | Conservé derrière **ASTRA**                                             | Démo IA + atelier cours                                                                              |
 | Marque TrendRadar                         | UI **FORECASTRO** (PR #31)                                              | Maquette `.scratch/forecastro-front`                                                                 |
 
-### ADR techniques (acceptées le 2026-11-13)
+### ADR techniques (acceptées le 2026-11-12)
 
 0001 (stack), 0006 (OpenAPI contract-first), 0007 (PostgreSQL 17) : confirmées au regard de la stack en place. On ne les réécrit pas : nouvel ADR si changement de décision.
 

@@ -30,7 +30,7 @@ Autre serveur, autre dialecte. Il faudrait réécrire `db/init/` et changer le c
 
 Nous retenons l'**option 1**, déjà celle de `compose.yaml` et du SQL présent.
 
-Confirmée le **2026-11-13** : PostgreSQL 17 est le moteur en place (`postgres:17` dans Compose, `pg` + `DATABASE_URL`, seeds `db/init/` pour questions, signaux et suivis). Aucun basculement vers SQLite ou MariaDB.
+Confirmée le **2026-11-12** : PostgreSQL 17 est le moteur en place (`postgres:17` dans Compose, `pg` + `DATABASE_URL`, seeds `db/init/` pour questions, signaux et suivis). Aucun basculement vers SQLite ou MariaDB.
 
 ## Conséquences
 

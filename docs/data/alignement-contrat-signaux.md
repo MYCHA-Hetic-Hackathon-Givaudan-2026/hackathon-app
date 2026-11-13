@@ -12,7 +12,7 @@ L’API Data réelle (trend-radar) **n’expose pas** `POST /tendances`. L’anc
 | ------------------------ | ------------------------------------------------------------------------------------------- |
 | Data (amont)             | [`openapi.json`](./openapi.json) — `/health`, `/scan/latest`, `/predict`, …                 |
 | Proxy monolithe          | `GET /api/data/health`, `GET /api/scan/latest`, `POST /api/predict`, `GET /api/scan/status` |
-| Globe (schéma monolithe) | `GET /api/signaux` → schéma `Signal` (graine SQL démo)                                      |
+| Globe (schéma monolithe) | `GET /api/signaux` → schéma `Signal` (seed SQL démo)                                        |
 
 **Règle** : pas de faux scores. On ne mappe pas `growth_since_t0` → `croissance_pct` ni `label` → `statut_data`. Les champs fictifs Data (`demo_fictif`) ne sont pas réécrits en « vrais » champs monolithe sans accord.
 
@@ -54,12 +54,12 @@ Le globe garde `Signal` (noms produit monolithe). Data sert `ScanRow` via `/scan
 | `verifiable_en`            | `verdict_verifiable_le`            | Oui                                | Réel               |
 | `sources[]` `{label,url}`  | `veille.sources[]` `{titre,url}`   | Oui (rename)                       | Liens réels        |
 
-En `DEMO_MODE=0`, Data **n’envoie plus** domaine / geo / veille / matières / `date_prediction`. Le monolithe conserve alors la **graine** pour le globe.
+En `DEMO_MODE=0`, Data **n’envoie plus** domaine / geo / veille / matières / `date_prediction`. Le monolithe conserve alors le **seed** pour le globe.
 
 ## Décisions
 
 1. **Proxies** alignés sur trend-radar ; ancien `POST /api/tendances` retiré du contrat et du code.
-2. **`GET /api/signaux`** reste la graine démo (IDs stables pour suivis). Consommer Data brut via `/api/scan/latest`.
+2. **`GET /api/signaux`** reste le seed démo (IDs stables pour suivis). Consommer Data brut via `/api/scan/latest`.
 3. **Pas d’adaptateur Signal ← ScanRow** dans cette PR (évite d’ingérer des champs `demo_fictif` comme vérité). Suite possible : ticket dédié avec règles de mapping + filtre `exclu_raison === null`.
 4. On **ne réécrit pas** l’ADR 0006 (proposée) : seul l’exemple `/tendances` dans son texte est daté ; le principe contract-first tient. Mise à jour ADR = PR séparée si le Tech Lead le demande.
 

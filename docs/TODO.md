@@ -35,7 +35,7 @@ Légende : `[ ]` à faire · `[~]` en cours / PR ouverte · `[x]` fait sur `deve
 
 ## Technique / qualité
 
-- [x] Confirmer ADR **0001 / 0006 / 0007** (statut acceptée) — 2026-11-13
+- [x] Confirmer ADR **0001 / 0006 / 0007** (statut acceptée) — 2026-11-12
 - [ ] Mettre à jour `openapi.yaml` si retrait définitif de `POST /api/tendances` sur `develop` (nouvel ADR seulement si abandon du contract-first)
 - [ ] Tests API (health, signaux, suivis) + smoke Playwright landing → explorer → rapport
 - [ ] Storybook ou page `/lab` pour tokens / composants shell
