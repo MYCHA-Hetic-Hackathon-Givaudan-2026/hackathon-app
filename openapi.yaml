@@ -1,0 +1,982 @@
+openapi: 3.1.0
+info:
+  title: Hackathon App API
+  version: 0.1.0
+  license:
+    name: UNLICENSED
+  description: >
+    Contrat HTTP de l'API du monolithe hackathon-app.
+    Santé, ressource d'exemple « questions », proxies Data
+    (`/api/scan/latest`, `/api/predict`, `/api/scan/status`, …),
+    seed démo TrendRadar `/api/signaux` (profil, géo, confiance),
+    suivis persistés `/api/suivis`, veilles append-only via `ask()`,
+    et agent conversationnel `/api/agent/message`.
+    Source de vérité, voir docs/adr/0006-contrat-api-openapi.md.
+    Le service Data en amont (malickl/trend-radar) a son propre contrat :
+    docs/data/openapi.json. Écarts Signal ↔ ScanRow :
+    docs/data/alignement-contrat-signaux.md.
+security: []
+servers:
+  - url: http://localhost:3000
+    description: Dev container, port 3000 relayé par VS Code
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: Indique si l'API et la base répondent
+      responses:
+        '200':
+          description: API et PostgreSQL joignables
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                db: PostgreSQL 17.11
+        '503':
+          description: L'API tourne mais la base est injoignable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/questions:
+    get:
+      operationId: listQuestions
+      summary: Liste les questions les plus récentes
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Nombre maximal de lignes (défaut 10)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Liste éventuellement vide
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Question'
+        '400':
+          description: Paramètre limit invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: createQuestion
+      summary: Pose une question, enregistre la réponse de l'IA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewQuestion'
+            example:
+              question: Quelle est la capitale du Japon ?
+      responses:
+        '201':
+          description: Question créée, avec la réponse de l'IA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Question'
+        '400':
+          description: Corps invalide (question manquante ou vide)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Question manquante
+        '502':
+          description: Le fournisseur d'IA n'a pas répondu correctement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/data/health:
+    get:
+      operationId: getDataHealth
+      summary: Santé du service Data (proxy)
+      description: >
+        Proxy vers GET /health de trend-radar.
+        Contrat amont : docs/data/openapi.json. Base : DATA_AI_URL.
+      responses:
+        '200':
+          description: Data joignable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataHealth'
+        '502':
+          description: Data a répondu une erreur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: DATA_AI_URL n'est pas configurée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: API Data non configurée (DATA_AI_URL)
+  /api/scan/latest:
+    get:
+      operationId: getScanLatest
+      summary: Dernier scan Data (proxy)
+      description: >
+        Proxy transparent vers GET /scan/latest (appel principal Data).
+        Corps inchangé par rapport à docs/data/openapi.json (ScanLatest).
+        Ne remplace pas GET /api/signaux (seed monolithe pour le globe).
+      responses:
+        '200':
+          description: Scan disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanLatest'
+        '404':
+          description: Aucun scan côté Data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Data indisponible ou corps inattendu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: DATA_AI_URL n'est pas configurée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: API Data non configurée (DATA_AI_URL)
+  /api/predict:
+    post:
+      operationId: postPredict
+      summary: Prédiction Data pour un sujet (proxy)
+      description: >
+        Proxy vers POST /predict. Corps et query `last`/`since` transmis tels quels.
+      parameters:
+        - name: last
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[0-9]{6}$'
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[0-9]{6}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictIn'
+            example:
+              title: Maritozzo
+              category: Desserts
+      responses:
+        '200':
+          description: Prédiction (label peut être null)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictOut'
+        '400':
+          description: Corps invalide (title manquant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Page Wikipédia introuvable côté Data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Data indisponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: DATA_AI_URL n'est pas configurée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/scan/status:
+    get:
+      operationId: getScanStatus
+      summary: État du scan Data (proxy)
+      description: Proxy vers GET /scan/status.
+      responses:
+        '200':
+          description: État
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanStatus'
+        '502':
+          description: Data indisponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: DATA_AI_URL n'est pas configurée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/signaux:
+    get:
+      operationId: listSignaux
+      summary: Liste les signaux démo TrendRadar
+      description: >
+        Seed démo monolithe (45 signaux). Schéma `Signal` (noms monolithe).
+        Pour le payload Data brut, utiliser GET /api/scan/latest.
+        Écarts de champs : docs/data/alignement-contrat-signaux.md.
+        Pas de faux scores : on n'invente pas de mapping statut/croissance.
+      parameters:
+        - name: profil
+          in: query
+          required: false
+          description: Filtre durable (T) ou buzz (B)
+          schema:
+            type: string
+            enum: [durable, buzz]
+        - name: min_confiance
+          in: query
+          required: false
+          description: Confiance minimale incluse (défaut 50)
+          schema:
+            type: integer
+            minimum: 50
+            maximum: 100
+            default: 50
+        - name: q
+          in: query
+          required: false
+          description: Recherche insensible à la casse sur le nom
+          schema:
+            type: string
+        - name: fenetre
+          in: query
+          required: false
+          description: >
+            Ne garde que les signaux dont le mois de décollage (YYYYMM)
+            tombe dans les N derniers jours
+          schema:
+            type: string
+            enum: [7d, 30d, 90d]
+      responses:
+        '200':
+          description: Liste éventuellement vide
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Signal'
+              example:
+                - id: 1
+                  nom: Maritozzo
+                  famille: Desserts
+                  domaine: Goût
+                  profil: durable
+                  confiance_pct: 96
+                  croissance_pct: null
+                  statut_data: null
+                  cc: IT
+                  pays: Italie
+                  lat: 41.91
+                  lon: 12.51
+                  ce_qui_plait: >
+                    La brioche moelleuse fendue et débordante de crème
+                    fouettée vanillée
+                  veille_resume: La brioche romaine à la crème…
+                  matieres:
+                    [Farine de blé, Crème fraîche, Vanille, Zeste d'orange]
+                  decollage: '202601'
+                  predit_en: '202607'
+                  verifiable_en: '202801'
+                  created_at: '2026-11-12T12:00:00.000Z'
+        '400':
+          description: Paramètre de filtre invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/signaux/{id}:
+    get:
+      operationId: getSignal
+      summary: Détail d'un signal avec sources dérivées
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Signal trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalDetail'
+        '400':
+          description: Identifiant invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Signal inconnu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Signal introuvable
+  /api/suivis:
+    get:
+      operationId: listSuivis
+      summary: Liste les signaux suivis
+      description: >
+        Chaque suivi référence un signal par clé étrangère (pas de copie de
+        score). Le signal joint sert le menu « Signaux suivis ».
+      responses:
+        '200':
+          description: Liste éventuellement vide
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Suivi'
+              example:
+                - id: 1
+                  signal_id: 1
+                  created_at: '2026-11-12T12:00:00.000Z'
+                  has_veille: false
+                  signal:
+                    id: 1
+                    nom: Maritozzo
+                    famille: Desserts
+                    domaine: Goût
+                    profil: durable
+                    confiance_pct: 96
+                    croissance_pct: null
+                    statut_data: null
+                    cc: IT
+                    pays: Italie
+                    lat: 41.91
+                    lon: 12.51
+                    ce_qui_plait: >
+                      La brioche moelleuse fendue et débordante de crème
+                      fouettée vanillée
+                    veille_resume: La brioche romaine à la crème…
+                    matieres:
+                      [Farine de blé, Crème fraîche, Vanille, Zeste d'orange]
+                    decollage: '202601'
+                    predit_en: '202607'
+                    verifiable_en: '202801'
+                    created_at: '2026-11-12T12:00:00.000Z'
+    post:
+      operationId: createSuivi
+      summary: Suit un signal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewSuivi'
+            example:
+              signal_id: 1
+      responses:
+        '201':
+          description: Suivi créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suivi'
+        '400':
+          description: Corps invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: signal_id manquant
+        '404':
+          description: Signal inconnu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Signal introuvable
+        '409':
+          description: Signal déjà suivi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Signal déjà suivi
+  /api/suivis/{id}:
+    delete:
+      operationId: deleteSuivi
+      summary: Retire un suivi
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '204':
+          description: Suivi retiré
+        '400':
+          description: Identifiant invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Suivi inconnu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Suivi introuvable
+  /api/suivis/{id}/veille:
+    post:
+      operationId: createVeille
+      summary: Génère une veille IA et l'ajoute à l'historique
+      description: >
+        Appelle `ask()` puis insert une ligne dans `veilles` (append-only).
+        En cas d'échec IA (tunnel down, fournisseur KO), répond 502 **sans**
+        insert : l'historique existant est conservé.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant du suivi
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '201':
+          description: Veille créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veille'
+              example:
+                id: 1
+                suivi_id: 1
+                texte: >
+                  Veille Maritozzo — articles récents et intérêt de recherche
+                  en hausse sur la brioche romaine à la crème.
+                created_at: '2026-11-12T15:00:00.000Z'
+        '400':
+          description: Identifiant invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Suivi inconnu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Suivi introuvable
+        '502':
+          description: Fournisseur IA injoignable (historique inchangé)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: 'IA : fetch failed'
+        '503':
+          description: Configuration IA manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: IA non configurée (AI_BASE_URL)
+  /api/suivis/{id}/veilles:
+    get:
+      operationId: listVeilles
+      summary: Historique daté des veilles d'un suivi
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant du suivi
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Liste éventuellement vide (du plus récent au plus ancien)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Veille'
+        '400':
+          description: Identifiant invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Suivi inconnu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Suivi introuvable
+  /api/agent/message:
+    post:
+      operationId: postAgentMessage
+      summary: Message à l'assistant TrendRadar
+      description: >
+        Détecte les intents locaux (veille / suivre / focus signal par nom)
+        et, à défaut, appelle `ask()` avec un system prompt CMI court.
+        Le contexte `signal_id` optionnel sert de cible si le message ne
+        nomme pas de signal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentMessageRequest'
+            example:
+              message: Fais une veille sur Maritozzo
+              signal_id: null
+      responses:
+        '200':
+          description: Réponse assistant (éventuellement avec action)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMessageResponse'
+              example:
+                reply: >
+                  C'est fait : veille activée sur Maritozzo. Je surveille
+                  articles, lancements et recherches.
+                action:
+                  type: veille
+                  signal_id: 1
+                  suivi_id: 1
+                  veille:
+                    id: 1
+                    suivi_id: 1
+                    texte: Veille Maritozzo…
+                    created_at: '2026-11-12T15:00:00.000Z'
+        '400':
+          description: Corps invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: message manquant
+        '502':
+          description: Fournisseur IA injoignable (aucune écriture perdue)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Configuration IA manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        db:
+          type: string
+          description: Version renvoyée par PostgreSQL (`SELECT version()`)
+    Question:
+      type: object
+      additionalProperties: false
+      required: [id, question, answer, created_at]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        question:
+          type: string
+        answer:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    NewQuestion:
+      type: object
+      additionalProperties: false
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 1
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+    DataHealth:
+      type: object
+      additionalProperties: false
+      required: [status, model_version, k, model]
+      properties:
+        status:
+          type: string
+        model_version:
+          type: string
+        k:
+          type: integer
+        model:
+          type: string
+    DataLabel:
+      type: string
+      enum: ['Tendance durable', Buzz]
+    Ym:
+      type: string
+      pattern: '^[0-9]{6}$'
+      description: Mois AAAAMM
+    ScanRow:
+      type: object
+      additionalProperties: true
+      required: [title, group, t0, proba_tendance, label, verdict_verifiable_le]
+      properties:
+        title:
+          type: string
+        group:
+          type: string
+        t0:
+          $ref: '#/components/schemas/Ym'
+        proba_tendance:
+          type: number
+          minimum: 0
+          maximum: 1
+        label:
+          $ref: '#/components/schemas/DataLabel'
+        verdict_verifiable_le:
+          $ref: '#/components/schemas/Ym'
+        exclu_raison:
+          type: [string, 'null']
+        growth_since_t0:
+          type: number
+        demo_fictif:
+          type: boolean
+        domaine:
+          type: string
+        country:
+          type: string
+        lat:
+          type: number
+        lon:
+          type: number
+        element_cle:
+          type: string
+        matieres_premieres:
+          type: array
+          items:
+            type: string
+        date_prediction:
+          $ref: '#/components/schemas/Ym'
+        veille:
+          type: object
+          additionalProperties: true
+    ScanLatest:
+      type: object
+      additionalProperties: true
+      required: [file, last_month, n, rows]
+      properties:
+        file:
+          type: string
+        last_month:
+          $ref: '#/components/schemas/Ym'
+        n:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanRow'
+        demo_fictif:
+          type: boolean
+        avertissement:
+          type: string
+        source_reelle:
+          type: string
+    PredictIn:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        category:
+          type: string
+        group:
+          type: string
+    PredictOut:
+      type: object
+      additionalProperties: true
+      required: [title, group, last_month, series]
+      properties:
+        title:
+          type: string
+        group:
+          type: string
+        last_month:
+          $ref: '#/components/schemas/Ym'
+        series:
+          type: object
+          additionalProperties: true
+        t0:
+          type: [string, 'null']
+        label:
+          type: [string, 'null']
+        proba_tendance:
+          type: [number, 'null']
+        message:
+          type: string
+    ScanStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        running:
+          type: boolean
+        progress:
+          type: [string, 'null']
+        error:
+          type: [string, 'null']
+        result:
+          type: [object, 'null']
+    Signal:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - nom
+        - famille
+        - domaine
+        - profil
+        - confiance_pct
+        - cc
+        - pays
+        - lat
+        - lon
+        - ce_qui_plait
+        - veille_resume
+        - matieres
+        - decollage
+        - predit_en
+        - verifiable_en
+        - created_at
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        nom:
+          type: string
+        famille:
+          type: string
+        domaine:
+          type: string
+        profil:
+          type: string
+          enum: [durable, buzz]
+        confiance_pct:
+          type: integer
+          minimum: 50
+          maximum: 100
+        croissance_pct:
+          type: [number, 'null']
+          description: >
+            Legacy seed ; l'API Data n'expose plus croissance_pct
+            (voir growth_since_t0 sur ScanRow). Rester null — ne pas inventer.
+        statut_data:
+          type: [string, 'null']
+          enum: ['émergent', stable, en baisse, null]
+          description: >
+            Legacy (ancien contrat /tendances). Data utilise label
+            Tendance durable|Buzz. Rester null — ne pas inventer.
+        cc:
+          type: string
+          description: Code pays ISO alpha-2
+        pays:
+          type: string
+        lat:
+          type: number
+        lon:
+          type: number
+        ce_qui_plait:
+          type: string
+        veille_resume:
+          type: string
+        matieres:
+          type: array
+          items:
+            type: string
+        decollage:
+          type: string
+          description: Mois de décollage au format YYYYMM
+          pattern: '^[0-9]{6}$'
+        predit_en:
+          type: string
+          description: Mois prédit au format YYYYMM
+          pattern: '^[0-9]{6}$'
+        verifiable_en:
+          type: string
+          description: Mois vérifiable au format YYYYMM
+          pattern: '^[0-9]{6}$'
+        created_at:
+          type: string
+          format: date-time
+    SignalSource:
+      type: object
+      additionalProperties: false
+      required: [label, url]
+      properties:
+        label:
+          type: string
+        url:
+          type: string
+          format: uri
+    SignalDetail:
+      allOf:
+        - $ref: '#/components/schemas/Signal'
+        - type: object
+          additionalProperties: false
+          required: [sources]
+          properties:
+            sources:
+              type: array
+              items:
+                $ref: '#/components/schemas/SignalSource'
+    NewSuivi:
+      type: object
+      additionalProperties: false
+      required: [signal_id]
+      properties:
+        signal_id:
+          type: integer
+          minimum: 1
+    Suivi:
+      type: object
+      additionalProperties: false
+      required: [id, signal_id, created_at, has_veille, signal]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        signal_id:
+          type: integer
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        has_veille:
+          type: boolean
+          description: True dès qu'au moins une veille append-only existe
+        signal:
+          $ref: '#/components/schemas/Signal'
+    Veille:
+      type: object
+      additionalProperties: false
+      required: [id, suivi_id, texte, created_at]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        suivi_id:
+          type: integer
+          minimum: 1
+        texte:
+          type: string
+          minLength: 1
+        created_at:
+          type: string
+          format: date-time
+    AgentMessageRequest:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+        signal_id:
+          type: [integer, 'null']
+          minimum: 1
+          description: Signal sélectionné sur le globe (cible de repli)
+    AgentMessageResponse:
+      type: object
+      additionalProperties: false
+      required: [reply]
+      properties:
+        reply:
+          type: string
+        action:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: [focus, follow, veille]
+            signal_id:
+              type: integer
+              minimum: 1
+            suivi_id:
+              type: integer
+              minimum: 1
+            veille:
+              $ref: '#/components/schemas/Veille'

@@ -10,3 +10,52 @@ services:
     command: sleep infinity
     volumes:
       - .:/workspace:cached
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      # Les données, dans un dossier du projet (ignoré par git)
+      - ./db/data:/var/lib/postgresql/data
+      # Schéma et données de test, joués au premier démarrage
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d app']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  # Le LLM local, joignable par les autres services sur http://ollama:11434
+  ollama:
+    image: ollama/ollama:0.12.6
+    volumes:
+      # Les modèles (plusieurs Go) : un volume Docker, hors du dossier du projet
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ['CMD', 'ollama', 'list']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Télécharge le modèle une fois, puis s'arrête
+  ollama-pull:
+    image: ollama/ollama:0.12.6
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    command: pull ${OLLAMA_MODEL:-qwen2.5:0.5b}
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: 'no'
+
+volumes:
+  ollama:
